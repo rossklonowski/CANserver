@@ -1,29 +1,36 @@
 html {
-  font-family: Helvetica;
-  display: inline-block;
-  margin: 0px auto;
-  text-align: center;
-  background-color: #000000;
+    font-family: "Courier New";
+    display: inline-block;
+    margin: 0px auto;
+    text-align: center;
+    background-color: black;
+    color: rgb(255, 255, 255);
 }
-h1{
-  color: #0F3376;
-  padding: 2vh;
+h2 { 
+    font-size: 2rem; 
 }
-p{
-  font-size: 1.5rem;
+p { 
+    font-size: 3.0rem; 
 }
-.button {
-  display: inline-block;
-  background-color: #008CBA;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  padding: 16px 40px;
-  text-decoration: none;
-  font-size: 30px;
-  margin: 2px;
-  cursor: pointer;
+table, th {
+    background-color: rgb(8, 8, 8);
+    border: 1px solid rgb(54, 54, 54);
+    vertical-align:middle;
+    margin-left:auto;
+    margin-right:auto;
+    border-collapse: collapse;
+} 
+td {
+    padding: 5px;
+    border: 1px solid rgb(54, 54, 54);
+    vertical-align:middle;
+    margin-left:auto;
+    margin-right:auto;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 28px;
+    width : 140px;
 }
-.button2 {
-  background-color: #000000;
+.value_entry {
+    text-align: center;
 }

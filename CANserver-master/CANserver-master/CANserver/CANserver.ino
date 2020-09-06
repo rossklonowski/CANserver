@@ -20,12 +20,10 @@
 #include "generalCANSignalAnalysis.h" //https://github.com/iChris93/ArduinoLibraryForCANSignalAnalysis
 #include "ESPAsyncWebServer.h" //https://github.com/me-no-dev/ESPAsyncWebServer
 #include <stdio.h> 
-#include <string> 
-#include <sstream>
 #include <AsyncJson.h>
 #include <WiFi.h>
 #include <esp_now.h> // for ESP32 to ESP32 wifi communication
-#include "SPIFFS.h" // for web server files
+#include "SPIFFS.h" // for web server files (html,styling)
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
@@ -74,7 +72,7 @@ unsigned long previouscycle = 0;
 
 static int interval = 50;
 
-// Replace with your network credentials
+// replace with your desired AP credentials
 const char* ssid = "Tesla Server";
 const char* password = "ellenpassword";
 
@@ -83,7 +81,7 @@ generalCANSignalAnalysis analyzeMessage; //initialize library
 // slave's MAC address
 uint8_t receiverMacAddress[] = {0xAC, 0x67, 0xB2, 0x2C, 0x3C, 0xD0};
 
-// Create AsyncWebServer object on port 80
+// create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
 String processor(const String& var){
@@ -225,172 +223,32 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, int valueToSend2, int value
     return result;
 }
 
-static int i = 0;
-
-#pragma region 
-const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML>
-<html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-            html {
-                font-family: "Courier New";
-                display: inline-block;
-                margin: 0px auto;
-                text-align: center;
-                background-color: black;
-                color: rgb(255, 255, 255);
-            }
-            h2 { 
-                font-size: 2rem; 
-            }
-            p { 
-                font-size: 3.0rem; 
-            }
-            table, th {
-                background-color: rgb(8, 8, 8);
-                border: 1px solid rgb(54, 54, 54);
-                vertical-align:middle;
-                margin-left:auto;
-                margin-right:auto;
-                border-collapse: collapse;
-            } 
-            td {
-                padding: 5px;
-                border: 1px solid rgb(54, 54, 54);
-                vertical-align:middle;
-                margin-left:auto;
-                margin-right:auto;
-                border-collapse: collapse;
-                text-align: left;
-                font-size: 28px;
-                width : 140px;
-            }
-            .value_entry {
-                text-align: center;
-            }
-        </style>
-    </head>
-    <body>
-        <h2>CAN Bus</h2>
-        <table>
-            <tr>
-                <th>CAN Signal</th>
-                <th>Value</th>
-            </tr>
-            <tr>
-                <td id="1">RearTorque</td>
-                <td id="1.1" style="text-align: center; ">-</td>
-            </tr>
-            <tr>
-                <td id="2">DI_accelPedalPos</td>
-                <td id="2.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="3">BMS_maxRegenPower</td>
-                <td id="3.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="4">BMS_maxDischargePower</td>
-                <td id="4.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="5">ChargeLineVoltage</td>
-                <td id="5.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="6">ChargeLineCurrent</td>
-                <td id="6.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="7">SteeringAngle</td>
-                <td id="7.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="8">BattVolts</td>
-                <td id="8.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="9">BattAmps</td>
-                <td id="9.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="10">BMSminPackTemperature</td>
-                <td id="10.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="11">BMSmaxPackTemperature</td>
-                <td id="11.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="12">coolantFlowBatActual</td>
-                <td id="12.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="13">BrakeTemp (FL)</td>
-                <td id="13.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="14">BrakeTemp (FR)</td>
-                <td id="14.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="15">BrakeTemp (RL</td>
-                <td id="15.1" style="text-align: center;">-</td>
-            </tr>
-            <tr>
-                <td id="16">BrakeTemp (RR)</td>
-                <td id="16.1" style="text-align: center;">-</td>
-            </tr>
-        </table>
-    </body>
-    <script>
-        setInterval(function ( ) {
-            var xhttp = new XMLHttpRequest();
-            xhttp.onreadystatechange = function() {
-                if (this.readyState == 4 && this.status == 200) {
-                    var data = JSON.parse(this.responseText);
-                }
-            };
-            xhttp.open("GET", "/refresh", true);
-            xhttp.send();
-        }, 100 );
-    </script>
-</html>
-)rawliteral";
-#pragma endregion
-
 void setup(){
 
-    pinMode(LED2, OUTPUT);
+    pinMode(LED2, OUTPUT); // configure blue LED
+
     Serial.begin(115200);
-    delay(200);
+    delay(100);
 
     CAN0.begin(BITRATE);
     CAN0.watchFor(); // then let everything else through anyway
-    
-    if (serial_switch) { 
-        delay(500); // wait for serial monitor to settle
-    }
 
-    // Initialize SPIFFS
+    // init SPIFFS
     if(!SPIFFS.begin(true)){
         Serial.println("An Error has occurred while mounting SPIFFS");
         return;
     }
 
-    Serial.print("Creating Access Point...");
-
     // init wifi station (STA means device that is capable of 802.11 protocol)
     WiFi.mode(WIFI_STA);
 
-    //Set device as a Wi-Fi Station
+    // set device as a Wi-Fi access point
     WiFi.softAP(ssid, password);
 
-    Serial.print("Station IP Address: ");
+    Serial.print("Please connect to the Station's IP Address at: ");
     IPAddress IP = WiFi.softAPIP();
-    
+    Serial.println(IP); // always 192.168.4.1
+
     // init ESP-NOW
     if (esp_now_init() != ESP_OK) {
         Serial.println("Error initializing ESP-NOW");
@@ -413,10 +271,18 @@ void setup(){
     }
 
     // server stuff
+
+    // route for root / web page
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        request->send_P(200, "text/html", index_html, processor);
+        request->send(SPIFFS, "/index.html", String(), false, processor);
+    });
+    
+    // route to load style.css file
+    server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(SPIFFS, "/style.css", "text/css");
     });
 
+    // start server
     server.begin();
 }
 
