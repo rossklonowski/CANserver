@@ -1,0 +1,145 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            html {
+                font-family: "Courier New";
+                display: inline-block;
+                margin: 0px auto;
+                text-align: center;
+                background-color: rgb(0, 0, 0);
+                color: rgb(255, 255, 255);
+            }
+            h2 { 
+                font-size: 2rem; 
+            }
+            p { 
+                font-size: 3.0rem; 
+            }
+            table, th {
+                vertical-align:middle;
+                border: 3px solid rgb(168, 0, 0);
+                margin-left:auto;
+                margin-right:auto;
+                border-collapse: collapse;
+            } 
+            th {
+                background-color: #a0a0a0;
+
+            }
+            td {
+                padding: 5px;
+                border: 3px solid rgb(143, 0, 0);
+                vertical-align:middle;
+                margin-left:auto;
+                margin-right:auto;
+                border-collapse: collapse;
+                text-align: left;
+                font-size: 28px;
+                width : 140px;
+            }
+            .value_entry {
+                text-align: center;
+            }
+            tr:nth-child(even) {background-color: #242424;}
+            tr:nth-child(odd) {background-color: #3d3d3d;}
+        </style>
+    </head>
+    <body>
+        <h2>CAN Bus</h2>
+        <table>
+            <tr>
+                <th>CAN Signal</th>
+                <th>Value</th>
+            </tr>
+            <tr>
+                <td id="1">RearTorque</td>
+                <td id="1.1" style="text-align: center; ">-</td>
+            </tr>
+            <tr>
+                <td id="2">DI_accelPedalPos</td>
+                <td id="2.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="3">BMS_maxRegenPower</td>
+                <td id="3.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="4">BMS_maxDischargePower</td>
+                <td id="4.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="5">ChargeLineVoltage</td>
+                <td id="5.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="6">ChargeLineCurrent</td>
+                <td id="6.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="7">SteeringAngle</td>
+                <td id="7.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="8">BattVolts</td>
+                <td id="8.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="9">BattAmps</td>
+                <td id="9.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="10">BMSminPackTemperature</td>
+                <td id="10.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="11">BMSmaxPackTemperature</td>
+                <td id="11.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="12">coolantFlowBatActual</td>
+                <td id="12.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="13">BrakeTemp (FL)</td>
+                <td id="13.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="14">BrakeTemp (FR)</td>
+                <td id="14.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="15">BrakeTemp (RL</td>
+                <td id="15.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="16">BrakeTemp (RR)</td>
+                <td id="16.1" style="text-align: center;">-</td>
+            </tr>
+        </table>
+    </body>
+    <script>
+        setInterval(function ( ) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("1.1").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open("GET", "/BattVolts", true);
+            xhttp.send();
+        }, 200 );
+
+        setInterval(function ( ) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("7.1").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open("GET", "/SteeringAngle", true);
+            xhttp.send();
+        }, 200 ) ;
+    </script>
+</html>

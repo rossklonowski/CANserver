@@ -1,0 +1,128 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            html {
+                font-family: "Courier New";
+                display: inline-block;
+                margin: 0px auto;
+                text-align: center;
+                background-color: black;
+                color: rgb(255, 255, 255);
+            }
+            h2 { 
+                font-size: 2rem; 
+            }
+            p { 
+                font-size: 3.0rem; 
+            }
+            table, th {
+                background-color: rgb(8, 8, 8);
+                border: 1px solid rgb(54, 54, 54);
+                vertical-align:middle;
+                margin-left:auto;
+                margin-right:auto;
+                border-collapse: collapse;
+            } 
+            td {
+                padding: 5px;
+                border: 1px solid rgb(54, 54, 54);
+                vertical-align:middle;
+                margin-left:auto;
+                margin-right:auto;
+                border-collapse: collapse;
+                text-align: left;
+                font-size: 28px;
+                width : 140px;
+            }
+            .value_entry {
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <h2>CAN Bus</h2>
+        <table>
+            <tr>
+                <th>CAN Signal</th>
+                <th>Value</th>
+            </tr>
+            <tr>
+                <td id="1">BattVoltage</td>
+                <td id="1.1" style="text-align: center; ">-</td>
+            </tr>
+            <tr>
+                <td id="2">SmoothBattCurrent</td>
+                <td id="2.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="3">BattPower(V*I/100)</td>
+                <td id="3.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="4">BMSminPackTemperature</td>
+                <td id="4.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="5">BMS_maxRegenPower</td>
+                <td id="5.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="6">BMS_maxDischargePower</td>
+                <td id="6.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="7">SteeringAngle</td>
+                <td id="7.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="8">DI_accelPedalPos</td>
+                <td id="8.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="9">UIspeed_signed</td>
+                <td id="9.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="10">RearTorque</td>
+                <td id="10.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="11">BMSmaxPackTemperature</td>
+                <td id="11.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="12">coolantFlowBatActual</td>
+                <td id="12.1" style="text-align: center;">-</td>
+            </tr>
+            <tr>
+                <td id="13">BrakeTemp (FL FR RL RR)</td>
+                <td id="13.1" style="text-align: center;">-</td>
+            </tr>
+        </table>
+    </body>
+    <script>
+        setInterval(function ( ) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("1.1").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open("GET", "/BattVolts", true);
+            xhttp.send();
+        }, 200 );
+
+        setInterval(function ( ) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("7.1").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open("GET", "/SteeringAngle", true);
+            xhttp.send();
+        }, 200 ) ;
+    </script>
+</html>
