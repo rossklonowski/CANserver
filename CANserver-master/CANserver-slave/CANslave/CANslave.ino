@@ -1,7 +1,5 @@
-// #include <LiquidCrystal.h>
 #include <esp_now.h>
 #include <WiFi.h>
-#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include "Adafruit_LEDBackpack.h"
 #include <stdio.h>
@@ -10,10 +8,9 @@
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
 
-bool isIdle = true;
-bool isFirstRecv = true;
-
-static int displaysArraySize = 3;
+static bool isIdle = true;
+static bool isFirstRecv = true;
+static bool debug = false;
 
 Adafruit_AlphaNum4 alpha1 = Adafruit_AlphaNum4();
 Adafruit_AlphaNum4 alpha2 = Adafruit_AlphaNum4();
@@ -21,7 +18,8 @@ Adafruit_AlphaNum4 alpha3 = Adafruit_AlphaNum4();
 Adafruit_AlphaNum4 alpha4 = Adafruit_AlphaNum4();
 Adafruit_AlphaNum4 alpha5 = Adafruit_AlphaNum4();
 
-Adafruit_AlphaNum4 displaysArray[] = {alpha1, alpha2, alpha3};
+Adafruit_AlphaNum4 displaysArray[] = {alpha1, alpha2, alpha3, alpha4, alpha5};
+static int displaysArraySize = 5;
 
 typedef struct payload_struct {
     uint32_t can_id;
@@ -81,6 +79,20 @@ void displayLoadingText(Adafruit_AlphaNum4 &disp1, Adafruit_AlphaNum4 &disp2, Ad
     disp3.writeDisplay();
     disp4.writeDisplay();
     disp5.writeDisplay();
+
+    delay(2000);
+
+    for (int j = displaysArraySize; j < 11; j++) {
+        //Serial.print("j: ");
+        //Serial.println(j);
+        for (int k = 0; k < 4; k++) {
+            displaysArray[j-1].writeDigitRaw(k, 0x0);
+            displaysArray[j-1].writeDisplay();
+            //Serial.print(" k: ");
+            //Serial.print(k);
+            delay(15);
+        }
+    }
 }
 
 void clearDisplays() {
@@ -110,34 +122,6 @@ void clearDisplays() {
     //         displaysArray[j].writeDisplay();
     //     }
     // }
-}
-
-void begin_loading_animation() {
-
-    Serial.println("In function!");
-
-    Adafruit_AlphaNum4 displays[] = {alpha3, alpha2, alpha1};
-
-    while(isIdle) {
-        for (int j = 0; j < 3; j++) {
-            for (int k = 0; k < 4; k++) {
-                displays[j].writeDigitRaw(k, 0x3FFF);
-                displays[j].writeDisplay();
-                delay(500);
-                displays[j].writeDigitRaw(k, 0x0);
-                displays[j].writeDisplay();
-                Serial.print("display: ");
-                Serial.print(j);
-                Serial.print("Segment: ");
-                Serial.print(k);
-                Serial.println();
-                if (!isIdle) {
-                    return;
-                }
-            }
-        }
-    }
-    Serial.println("End of function!");
 }
 
 void initDisplayUnits() {
@@ -191,29 +175,42 @@ void writeLCD(payload_struct payload) { // decode message received and display t
             break;
 
         case 0x132 : { // HVBattAmpVolt
-
-            // write power value to quadalphanum
+            // write power to display
+            // get absolute value of data
             String data0 = String(abs(payload.int_value_3), 10); // Convert absolute value to string 
 
-            if (data0.length() == 2) {
-                alpha5.writeDigitRaw(3, 0x0);
-            } else if (data0.length() == 1) {
-                alpha5.writeDigitRaw(2, 0x0);
-                alpha5.writeDigitRaw(3, 0x0);
+            int msd_offset = 0;
+
+            switch(data0.length()) {
+                case 1 :
+                    msd_offset = 3;
+                    break;
+                case 2 :
+                    msd_offset = 2;
+                    break;
+                case 3 : 
+                    msd_offset = 1;
+                    break;
             }
 
             // handle negative sign
-            if (payload.int_value_3 < 0) {      // if negative num
-                alpha5.writeDigitAscii(0, '-'); // write negative sign    
-            } else {                            // if positive num
-                alpha5.writeDigitRaw(0, 0x0);    // clear negative sign
+            if (payload.int_value_3 < 0) {
+                alpha5.writeDigitAscii(msd_offset - 1, '-');
+            } else {
+                alpha5.writeDigitRaw(msd_offset - 1, 0x0);
             }
 
+            // write number to display
             for (int i = 0; i < data0.length(); i++) {
-                alpha5.writeDigitAscii(i + 1, data0[i]);
+                alpha5.writeDigitAscii(i + msd_offset, data0[i]);
             }
 
-            alpha5.writeDisplay(); // finally write to display
+            // clear unused segments instead of clearing entire display
+            for (int i = 0; i < msd_offset - 1; i++) {
+                alpha5.writeDigitRaw(i, 0x0);
+            }
+
+            alpha5.writeDisplay();
 
             // write volts value to quadalphanum
             String data1 = String(abs(payload.int_value_1), 10); // Convert absolute value to string 
@@ -275,25 +272,27 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
     payload_struct myData;
     memcpy(&myData, incomingData, sizeof(myData));
 
-    Serial.print("Bytes received: ");
-    Serial.println(len);
+    if (debug) {
+        Serial.print("Bytes received: ");
+        Serial.println(len);
 
-    Serial.print("can_id received: ");
-    Serial.println(myData.can_id);
+        Serial.print("can_id received: ");
+        Serial.println(myData.can_id);
 
-    Serial.print("int_value_1 received: ");
-    Serial.println(myData.int_value_1);
+        Serial.print("int_value_1 received: ");
+        Serial.println(myData.int_value_1);
 
-    Serial.print("int_value_2 received: ");
-    Serial.println(myData.int_value_2);
-    
-    Serial.print("Unit1 received: ");
-    Serial.println(myData.unit1);
+        Serial.print("int_value_2 received: ");
+        Serial.println(myData.int_value_2);
+        
+        Serial.print("Unit1 received: ");
+        Serial.println(myData.unit1);
 
-    Serial.print("Unit2 received: ");
-    Serial.println(myData.unit2);
+        Serial.print("Unit2 received: ");
+        Serial.println(myData.unit2);
 
-    Serial.print("\n");
+        Serial.print("\n");
+    }
 
     writeLCD(myData); // decode message received and display to quadalphanumeric displays
 }
@@ -314,20 +313,6 @@ void setup() {
     alpha5.begin(0x74);  // pass in the address
 
     displayLoadingText(alpha1, alpha2, alpha3, alpha4, alpha5);
-    
-    delay(2000);
-
-    clearDisplays();
-
-    // alpha1.clear();
-    // alpha2.clear();
-    // alpha3.clear();
-    
-    // alpha1.writeDisplay();
-    // alpha2.writeDisplay();
-    // alpha3.writeDisplay();
-
-    //begin_loading_animation();
     
     if (esp_now_init() != ESP_OK) {
       Serial.println("Error initializing ESP-NOW");

@@ -29,8 +29,19 @@ td {
     border-collapse: collapse;
     text-align: left;
     font-size: 28px;
-    width : 140px;
 }
-.value_entry {
+td.label {
+    font-size: 12pt;
+    color: rgb(122, 122, 122);
+    text-align: center;
+}
+td.data {
+    text-align: center;
+    font-size: 30pt;
+    width: 90px;
+}
+th.label {
+    font-size: 8pt;
+    color: rgb(122, 122, 122);
     text-align: center;
 }

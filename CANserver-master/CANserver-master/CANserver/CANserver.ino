@@ -24,6 +24,7 @@
 #include <WiFi.h>
 #include <esp_now.h> // for ESP32 to ESP32 wifi communication
 #include "SPIFFS.h" // for web server files (html,styling)
+#include <ArduinoJson.h>
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
@@ -70,7 +71,7 @@ static int ChargeLinePower = 0;
 
 unsigned long previouscycle = 0;
 
-static int interval = 50;
+static int interval = 100;
 
 // replace with your desired AP credentials
 const char* ssid = "Tesla Server";
@@ -83,11 +84,6 @@ uint8_t receiverMacAddress[] = {0xAC, 0x67, 0xB2, 0x2C, 0x3C, 0xD0};
 
 // create AsyncWebServer object on port 80
 AsyncWebServer server(80);
-
-String processor(const String& var){
-
-    return String();
-}
 
 // message struct
 typedef struct struct_message {
@@ -274,12 +270,18 @@ void setup(){
 
     // route for root / web page
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        request->send(SPIFFS, "/index.html", String(), false, processor);
+        request->send(SPIFFS, "/index.html", String(), false);
     });
     
     // route to load style.css file
     server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(SPIFFS, "/style.css", "text/css");
+    });
+
+    // route to refesh
+    server.on("/refresh", HTTP_GET, [](AsyncWebServerRequest *request){
+        //request->send(200, "application/json", doc);
+        request->send(200, "text/plain", String(RearTorque).c_str());
     });
 
     // start server
@@ -295,7 +297,7 @@ void loop() {
         if (currentMillis - previouscycle >= interval) {
             previouscycle = currentMillis;
 
-            digitalWrite(LED2, !digitalRead(LED2)); //flash LED for awake
+            //digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
             
             // MinBattTemp = MinBattTemp + 1;
             // if (MinBattTemp == 100) {
@@ -303,13 +305,13 @@ void loop() {
             // }
 
             // RearTorque = RearTorque + 1;
-            // if (RearTorque == 500) {
-            //     RearTorque = 0;
+            // if (RearTorque == 150) {
+            //     RearTorque = -150;
             // }
 
             // BattVolts = BattVolts + 1;
-            // if (BattVolts == 500) {
-            //     BattVolts = 0;
+            // if (BattVolts == 150) {
+            //     BattVolts = -150;
             // }
 
             // BattAmps = BattAmps + 1;
@@ -317,24 +319,29 @@ void loop() {
             //     BattAmps = -99;
             // }
 
-            // BattPower = BattPower + 1;
-            // if (BattPower == 500) {
-            //     BattPower = -500;
-            // }
+            BattPower = BattPower + 1;
+            if (BattPower == 150) {
+                BattPower = -150;
+            }
+
+            sendToDisplay(0x132, BattVolts, BattAmps, BattPower, "V", "A", "KW");
             
             //sendToDisplay(0x1D8, RearTorque, "NM");
 
-            if ( (BattVolts_temp != BattVolts) || (BattAmps != BattAmps_temp) || (BattPower != BattPower) ) {
-                sendToDisplay(0x132, BattVolts, BattAmps, BattPower, "V", "A", "KW");
-                BattVolts_temp = BattVolts;
-                BattAmps_temp = BattAmps;
-                BattPower_temp = BattPower;
-            }
+            // if ( (BattVolts_temp != BattVolts) || (BattAmps != BattAmps_temp) || (BattPower != BattPower) ) {
+            //     sendToWebPage()
+                
+            //     sendToDisplay(0x132, BattVolts, BattAmps, BattPower, "V", "A", "KW");
+                
+            //     BattVolts_temp = BattVolts;
+            //     BattAmps_temp = BattAmps;
+            //     BattPower_temp = BattPower;
+            // }
 
-            if (MinBattTemp != MinBattTemp_temp) {
-                sendToDisplay(0x312, MinBattTemp, "F");
-                MinBattTemp_temp = MinBattTemp;
-            }
+            // if (MinBattTemp != MinBattTemp_temp) {
+            //     sendToDisplay(0x312, MinBattTemp, "F");
+            //     MinBattTemp_temp = MinBattTemp;
+            // }
             
             if (serial_switch) {
                 Serial.print("Battery: Volts: ");

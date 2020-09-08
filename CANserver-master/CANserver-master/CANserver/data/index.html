@@ -5,21 +5,73 @@
         <link rel="stylesheet" type="text/css" href="style.css">
     </head>
     <body>
-        <h2>CAN Bus</h2>
-        <p>
-        CAN Signal
-        </p>
-    </body>
+        <h1>Tesla Server</h1>
+        <table>
+            <th colspan="4">Battery</th>
+            <tr>
+                <th class = "label">Output</th>
+                <td class = "data">KW</td>
+                <td class = "data">A</td>
+                <td class = "data">V</td>
+            </tr>
+            <tr>
+                <td class = "data" colspan="2" id="rear-torque">NM</td>
+                <td class = "data" colspan="2" id="rear-torque">m/s<sup>2</sup>
+                </td> 
+            </tr>
+            <tr>
+                <th class = "label">Max regen</td>
+                <td class = "data"></td>
+                <th class = "label">Min Discharge</td> 
+                <td class = "data"></td>  
+            </tr>
+            <tr>
+                <th class = "label">remaining kwh</td>
+                <td class = "data" ></td>
+                <th class = "label">full kwh</td>
+                <td class = "data"></td>    
+            </tr>
+            <tr>
+                <th class = "label" colspan="2">Beginning Of Life Energy</td>  
+                <td class = "data" colspan="2"></td>    
+            </tr>
+            <tr>
+                <th class = "label">Charging info</td>
+                <td class = "data" >KW</td>
+                <td class = "data">A</td>
+                <td class = "data">V</td>   
+            </tr>
+            <th class = "label" colspan="4">Brake Temps</th>
+            <tr>
+                <th class = "label">FR</th>
+                <td class = "data">FR</td>
+                <th class = "label">FL</td>
+                <td class = "data">FL</td>
+            </tr>
+            <tr>
+                <th class = "label">RR</th>
+                <td class = "data">RR</td>
+                <th class = "label">RL</td>
+                <td class = "data">RL</td>
+            </tr>
+          </table>
     <script>
         setInterval(function ( ) {
             var xhttp = new XMLHttpRequest();
             xhttp.onreadystatechange = function() {
                 if (this.readyState == 4 && this.status == 200) {
-                    var data = JSON.parse(this.responseText);
+                    //var data = JSON.parse(this.responseText);
+                    //document.getElementById("rear-torque").innerHTML = this.responseText;
+                    
+                    var x = document.getElementsByClassName("data");
+                    var i;
+                    for (i = 0; i < x.length; i++) {
+                    x[i].innerHTML = this.responseText;
+                    }
                 }
             };
             xhttp.open("GET", "/refresh", true);
             xhttp.send();
-        }, 100 );
+        }, 200 );
     </script>
 </html>
