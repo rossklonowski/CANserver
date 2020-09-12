@@ -36,38 +36,63 @@
 static bool debug = false;
 static bool serial_switch = false;
 
-static int BattVolts_temp = 0;
-static int BattVolts = 0;        //ID 132 byte 0+1 scale .01 V
+static int battVolts_temp = 0;
+static int battVolts = 0;        //ID 132 byte 0+1 scale .01 V
 
-static int BattAmps_temp = 0;
-static int BattAmps = 0;         //ID 132 byte 2+3 scale -.1 offset 0 A
+static int battAmps_temp = 0;
+static int battAmps = 0;         //ID 132 byte 2+3 scale -.1 offset 0 A
 
-static int MinBattTemp_temp = 0;
-static int MinBattTemp = 0;      //ID 312 SB 44 u9 scale .25 offset -25 C
+static int minBattTemp_temp = 0;
+static int minBattTemp = 0;      //ID 312 SB 44 u9 scale .25 offset -25 C
 
-static int BattPower_temp = 0;   //V*A
-static int BattPower = 0;        //V*A
+static int battPower_temp = 0;   // V*A
+static int battPower = 0;        // V*A
 
-static int RearTorque = 0;       //ID 1D8 startbit 24 signed13 scale 0.25 NM
-static int BattCoolantRate = 0;  //ID 241 SB 0 u9 scale .01 LPM
+static int gradeEST_temp = 0;
+static int gradeEST = 0;
+
+static int gradeESTinternal_temp = 0;
+static int gradeESTinternal = 0;
+
+static int rearTorque = 0;       //ID 1D8 startbit 24 signed13 scale 0.25 NM
+static int battCoolantRate = 0;  //ID 241 SB 0 u9 scale .01 LPM
 static int PTCoolantRate = 0;    //ID 241 SB 22 u9 scale .01 LPM
-static int MaxRegen = 0;         //ID 252 Bytes 0+1 scale .01 kW
-static int MaxDisChg = 0;        //ID 252 Bytes 2+3 scale .01 kW
-static int VehSpeed = 0;         //ID 257 SB 12 u12 scale .08 offset -40 KPH
-static int SpeedUnit = 0;        //ID 257
-static int BattCoolantTemp = 0;  //ID 321 SB0 u10 scale 0.125 offset -40 C
-static int PTCoolantTemp = 0;    //ID 321 SB10 u10 scale 0.125 offset -40 C
-static int BattRemainKWh = 0;    //ID 352 byte 1/2 scale .1 kWh
-static int BattFullKWh = 0;      //ID 352 byte 0/1 scale .1 kWh
+
+static int battCoolantTemp = 0;  //ID 321 SB0 u10 scale 0.125 offset -40 C
+static int ptCoolantTemp = 0;    //ID 321 SB10 u10 scale 0.125 offset -40 C
+static int battRemainKWh = 0;    //ID 352 byte 1/2 scale .1 kWh
+static int battFullKWh = 0;      //ID 352 byte 0/1 scale .1 kWh
 static int steering_angle = 0;
 static int accelPedalPos = 0;
 static int brakePedalPos = 0;
-static int BMSmaxPackTemperature = 0;
-static int BMSminPackTemperature = 0;
-static int DisplayOn = 1;       //to turn off displays if center screen is off
-static int ChargeLineVoltage = 0;
-static int ChargeLineCurrent = 0;
-static int ChargeLinePower = 0;
+
+static int bmsMaxPackTemperature_temp = 0;
+static int bmsMaxPackTemperature = 0;
+
+static int nominalFullPackEnergy_temp = 0;
+static int nominalFullPackEnergy = 0;
+
+static int bmsMinPackTemperature_temp = 0;
+static int bmsMinPackTemperature = 0;
+
+static int displayOn_temp = 1;
+static int displayOn = 1;       //to turn off displays if center screen is off
+
+static int chargeLineVoltage_temp = 0;
+static int chargeLineVoltage = 0;
+static int chargeLineCurrent_temp = 0;
+static int chargeLineCurrent = 0;
+static int chargeLinePower_temp = 0;
+static int chargeLinePower = 0;
+
+static int maxRegen_temp = 0;         //ID 252 Bytes 0+1 scale .01 kW
+static int maxRegen = 0;         //ID 252 Bytes 0+1 scale .01 kW
+
+static int maxDischarge_temp = 0;        //ID 252 Bytes 2+3 scale .01 kW
+static int maxDischarge = 0;        //ID 252 Bytes 2+3 scale .01 kW
+
+static int battBeginningOfLifeEnergy_temp = 0;
+static int battBeginningOfLifeEnergy = 0;
 
 unsigned long previouscycle = 0;
 
@@ -207,7 +232,7 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, int valueToSend2, int value
 
     Serial.print("int_value_2 sent: ");
     Serial.println(payload.int_value_2);
-    
+
     Serial.print("Unit1 sent: ");
     Serial.println(payload.unit1);
 
@@ -281,7 +306,7 @@ void setup(){
     // route to refesh
     server.on("/refresh", HTTP_GET, [](AsyncWebServerRequest *request){
         //request->send(200, "application/json", doc);
-        request->send(200, "text/plain", String(RearTorque).c_str());
+        request->send(200, "text/plain", String(rearTorque).c_str());
     });
 
     // start server
@@ -299,32 +324,57 @@ void loop() {
 
             //digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
             
-            // MinBattTemp = MinBattTemp + 1;
-            // if (MinBattTemp == 100) {
-            //     MinBattTemp = -32;
-            // }
-
-            // RearTorque = RearTorque + 1;
-            // if (RearTorque == 150) {
-            //     RearTorque = -150;
-            // }
-
-            // BattVolts = BattVolts + 1;
-            // if (BattVolts == 150) {
-            //     BattVolts = -150;
-            // }
-
-            // BattAmps = BattAmps + 1;
-            // if (BattAmps == 500) {
-            //     BattAmps = -99;
-            // }
-
-            BattPower = BattPower + 1;
-            if (BattPower == 150) {
-                BattPower = -150;
+            minBattTemp = minBattTemp + 1;
+            if (minBattTemp == 100) {
+                minBattTemp = -32;
             }
 
-            sendToDisplay(0x132, BattVolts, BattAmps, BattPower, "V", "A", "KW");
+            rearTorque = rearTorque + 1;
+            if (rearTorque == 150) {
+                rearTorque = -150;
+            }
+
+            battVolts = battVolts + 1;
+            if (battVolts == 450) {
+                battVolts = 200;
+            }
+
+            battAmps = battAmps + 1;
+            if (battAmps == 500) {
+                battAmps = -99;
+            }
+
+            battPower = battPower + 1;
+            if (battPower == 150) {
+                battPower = -150;
+            }
+
+            displayOn = displayOn + 1;
+            if (displayOn == 2) {
+                displayOn = 0;
+            }
+
+            battCoolantRate = battCoolantRate + 1;
+            if (battCoolantRate == 10) {
+                battCoolantRate = 0;
+            }
+
+            nominalFullPackEnergy = nominalFullPackEnergy + 1;
+            if (nominalFullPackEnergy == 99) {
+                nominalFullPackEnergy = 50;
+            }
+
+            maxRegen = maxRegen + 1;
+            if (maxRegen == 99) {
+                maxRegen = 50;
+            }
+
+            maxDischarge = maxDischarge + 1;
+            if (maxDischarge == 99) {
+                maxDischarge = 50;
+            }
+
+            sendToDisplay(0x132, battVolts, battAmps, battPower, "V", "A", "KW");
             
             //sendToDisplay(0x1D8, RearTorque, "NM");
 
@@ -343,57 +393,27 @@ void loop() {
             //     MinBattTemp_temp = MinBattTemp;
             // }
             
-            if (serial_switch) {
-                Serial.print("Battery: Volts: ");
-                Serial.print(BattVolts);
-                Serial.print(" V Amps: ");
-                Serial.print(BattAmps);
-                Serial.print(" A Power: ");
-                Serial.print(BattPower);
-                Serial.print(" kW");
-                
-                Serial.print("\n");
 
-                Serial.print("Min Battery Temperature: ");
-                Serial.print((MinBattTemp * 9/5) + 32);
-                Serial.print(" F");
-                
-                Serial.print("\n");
-
-                Serial.print("Max Regen: ");
-                Serial.print(MaxRegen);
-                Serial.print(" kW");
-                Serial.print(" Max Discharge: ");
-                Serial.print(MaxDisChg);
-                Serial.print(" kW");
-
-                Serial.print("\n");
-
-                Serial.print("Steering Angle: ");
-                Serial.print(steering_angle);
-                Serial.print(" Deg");
-                Serial.print(" accelPedalPos: ");
-                Serial.print(accelPedalPos);
-                Serial.print(" VehSpeed: ");
-                Serial.print(VehSpeed);
-                Serial.print(" mph");
-                Serial.print(" Rear Torque: ");
-                Serial.print(RearTorque);
-                Serial.print(" NM");
-
-                Serial.print("\n");
-
-                Serial.print("BMSmaxPackTemperature: ");
-                Serial.print((BMSmaxPackTemperature * 9/5) + 32);
-                Serial.print(" F");
-                Serial.print(" BMSminPackTemperature: ");
-                Serial.print((BMSminPackTemperature * 9/5) + 32);
-                Serial.print(" F");
-
-                Serial.print("\n");
-                Serial.print("***************************");
-                Serial.print("\n");
-            }
+            // displayOn
+            // battVolts
+            // battAmps 
+            // battPower 
+            // rearTorque 
+            // battCoolantRate;
+            // PTCoolantRate;
+            // chargeLineVoltage;
+            // chargeLineCurrent;
+            // chargeLinePower; 
+            // gradeEST; 
+            // gradeESTinternal;
+            // battBeginningOfLifeEnergy;
+            // minBattTemp;
+            // minBattTemp;
+            // maxRegen;
+            // maxDischarge; 
+            // battRemainKWh; 
+            // battFullKWh;
+            // nominalFullPackEnergy; 
         }
     }
     
@@ -425,13 +445,7 @@ void loop() {
         {
             case 0x00C: // UI_status
                 if (message.length == 8) {
-                    DisplayOn = analyzeMessage.getSignal(message.data.uint64, 5, 1, 1, 0, false, littleEndian);  //SG_ UI_displayOn : 5|1@1+ (1,0) [0|1] ""
-                }
-                break;
-
-            case 0x129: // SteeringAngle
-                if (message.length == 8) {
-                    int steering_angle = analyzeMessage.getSignal(message.data.uint64, 16, 14, 0.1, -819.2, false, littleEndian);
+                    displayOn = analyzeMessage.getSignal(message.data.uint64, 5, 1, 1, 0, false, littleEndian);  //SG_ UI_displayOn : 5|1@1+ (1,0) [0|1] ""
                 }
                 break;
                 
@@ -440,74 +454,71 @@ void loop() {
                     int tempvolts;
                     tempvolts = analyzeMessage.getSignal(message.data.uint64, 0, 16, 0.01, 0, false, littleEndian);
                     if ((tempvolts > 290) && (tempvolts < 420)) { //avoid some bad messages
-                        BattVolts = tempvolts;
-                        BattAmps = analyzeMessage.getSignal(message.data.uint64, 16, 16, -0.1, 0, true, littleEndian); //signed 15, mask off sign
-                        BattPower = BattVolts * BattAmps / 100;
+                        battVolts = tempvolts;
+                        battAmps = analyzeMessage.getSignal(message.data.uint64, 16, 16, -0.1, 0, true, littleEndian); //signed 15, mask off sign
+                        battPower = battVolts * battAmps / 100;
                     }
                 }
                 break;
                 
             case 0x1D8: // RearTorque
                 if (message.length == 8) {
-                    int temptorque;
-                    temptorque = analyzeMessage.getSignal(message.data.uint64, 24, 13, 0.25, 0, true, littleEndian);  //signed13, mask off sign
-                    if ((temptorque < 5000) && (temptorque > -2000)) {  //reduce errors
-                        RearTorque = temptorque;
+                    int tempTorque;
+                    tempTorque = analyzeMessage.getSignal(message.data.uint64, 24, 13, 0.25, 0, true, littleEndian);  //signed13, mask off sign
+                    if ((tempTorque < 5000) && (tempTorque > -2000)) {  //reduce errors
+                        rearTorque = tempTorque;
                     }
                 }
                 break;
             
             case 0x241: // VCFRONT_coolant
-                BattCoolantRate = analyzeMessage.getSignal(message.data.uint64, 0, 9, 0.1, 0, false, littleEndian);  //ID 241 SB 0 u9 scale .01 LPM
+                battCoolantRate = analyzeMessage.getSignal(message.data.uint64, 0, 9, 0.1, 0, false, littleEndian);  //ID 241 SB 0 u9 scale .01 LPM
                 //PTCoolantRate = analyzeMessage.getSignal(message.data.uint64, 22, 9, 0.1, 0, false, littleEndian);    //ID 241 SB 22 u9 scale .01 LPM
-                break;
-
-            case 0x252: // BMS_powerAvailable
-                MaxRegen =  analyzeMessage.getSignal(message.data.uint64, 0, 16, 0.01, 0, false, littleEndian);
-                MaxDisChg = analyzeMessage.getSignal(message.data.uint64, 16, 16, 0.01, 0, false, littleEndian);
-                break;
-                
-            case 0x257: // VehSpeed = 0;     //ID 257 SB 12 u12 scale .08 offset -40 KPH
-                if (message.length == 8) {
-                    ///SpeedUnit = analyzeMessage.getSignal(message.data.uint64, 32, 1, 1, 0, false, littleEndian); //strange this doesn't change with UI setting! Location?
-                    VehSpeed = analyzeMessage.getSignal(message.data.uint64, 12, 12, 0.08, -40, false, littleEndian);
-                }
                 break;
 
             case 0x264: // DIR_torque
                 if (message.length == 8) {
-                    ChargeLineVoltage = analyzeMessage.getSignal(message.data.uint64, 0, 14, .0333, 0, false, littleEndian);
-                    ChargeLineCurrent = analyzeMessage.getSignal(message.data.uint64, 14, 9, 0.1, 0, false, littleEndian);
-                    ChargeLinePower = analyzeMessage.getSignal(message.data.uint64, 24, 8, 0.1, 0, false, littleEndian);
-                }
-                break;
-                
-            case 0x293: // UI_chassisControl    
-                if (message.length == 8) {
-                    SpeedUnit = analyzeMessage.getSignal(message.data.uint64, 13, 1, 1, 0, false, littleEndian); //UI distance setting to toggle speed display units
+                    chargeLineVoltage = analyzeMessage.getSignal(message.data.uint64, 0, 14, .0333, 0, false, littleEndian);
+                    chargeLineCurrent = analyzeMessage.getSignal(message.data.uint64, 14, 9, 0.1, 0, false, littleEndian);
+                    chargeLinePower = analyzeMessage.getSignal(message.data.uint64, 24, 8, 0.1, 0, false, littleEndian);
                 }
                 break;
 
-            case 0x280: // DriveSystemStatus    
+            case 0x267: // DI_vehicleEstimates
                 if (message.length == 8) {
-                    accelPedalPos = analyzeMessage.getSignal(message.data.uint64, 32, 8, 0.4, 0, false, littleEndian);
+                    gradeEST = analyzeMessage.getSignal(message.data.uint64, 33, 7, 1, 0, false, littleEndian);
+                    gradeESTinternal = analyzeMessage.getSignal(message.data.uint64, 48, 7, 1, 0, false, littleEndian);
+                }
+                break;
+
+            case 0x292: // BMS_SOC 
+                if (message.length == 8) {
+                    battBeginningOfLifeEnergy = analyzeMessage.getSignal(message.data.uint64, 40, 10, 0.1, 0, false, littleEndian);
                 }
                 break;
 
             case 0x312: // BMSthermal
                 if (message.length == 8) {
-                    MinBattTemp = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
-                    MinBattTemp = MinBattTemp * (9/5) + 32; // convert to f
+                    minBattTemp = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
+                    minBattTemp = minBattTemp * (9/5) + 32; // convert to f
+                }
+                break;
+
+            case 0x336: // 
+                if (message.length == 8) {
+                    maxRegen =  analyzeMessage.getSignal(message.data.uint64, 16, 8, 1, -100, false, littleEndian);
+                    maxDischarge = analyzeMessage.getSignal(message.data.uint64, 0, 10, 1, 0, false, littleEndian);
                 }
                 break;
 
             case 0x352: // BMS_energyStatus
                 if (message.length == 8) {
-                    BattRemainKWh = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
-                    BattFullKWh = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
+                    battRemainKWh = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
+                    battFullKWh = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
+                    nominalFullPackEnergy = analyzeMessage.getSignal(message.data.uint64, 0, 11, 0.1, 0, false, littleEndian);
                 }
                 break;
-
+    
             default:
                 break;
         }
