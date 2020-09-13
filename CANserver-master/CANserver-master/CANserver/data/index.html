@@ -9,50 +9,67 @@
         <table>
             <th colspan="4">Battery</th>
             <tr>
-                <th class = "label">Output</th>
-                <td class = "data">KW</td>
-                <td class = "data">A</td>
-                <td class = "data">V</td>
+                <th class="label">Output</th>
+                <td class="data" id="battPower">KW</td>
+                <td class="data" id="battAmps">A</td>
+                <td class="data" id="battVolts">V</td>
             </tr>
             <tr>
-                <td class = "data" colspan="2" id="rear-torque">NM</td>
-                <td class = "data" colspan="2" id="rear-torque">m/s<sup>2</sup>
+                <td colspan="2" id="rearTorque">NM</td>
+                <td class="data" colspan="2" id="acceleration">m/s<sup>2</sup>
                 </td> 
             </tr>
             <tr>
-                <th class = "label">Max regen</td>
-                <td class = "data"></td>
-                <th class = "label">Min Discharge</td> 
-                <td class = "data"></td>  
+                <th class="label">Max regen</td>
+                <td class="data" id="maxRegen"></td>
+                <th class="label">Max Discharge</td> 
+                <td class="data" id="maxDischarge"></td>  
             </tr>
             <tr>
-                <th class = "label">remaining kwh</td>
-                <td class = "data" ></td>
-                <th class = "label">full kwh</td>
-                <td class = "data"></td>    
+                <th class="label">Min Temp</td>
+                <td class="data" id="minBattTemp"></td>
+                <th class="label">Max Temp</td> 
+                <td class="data" id="maxBattTemp"></td>  
             </tr>
             <tr>
-                <th class = "label" colspan="2">Beginning Of Life Energy</td>  
-                <td class = "data" colspan="2"></td>    
+                <th class="label">remaining kwh</td>
+                <td class="data" id="nominalEnergyRemaining"></td>
+                <th class="label">full kwh</td>
+                <td class="data" id="nominalFullPackEnergy"></td>    
             </tr>
             <tr>
-                <th class = "label">Charging info</td>
-                <td class = "data" >KW</td>
-                <td class = "data">A</td>
-                <td class = "data">V</td>   
+                <th class="label" colspan="2">Beginning Of Life Energy</td>  
+                <td class="data" id="battBeginningOfLifeEnergy"colspan="2"></td>    
             </tr>
-            <th class = "label" colspan="4">Brake Temps</th>
+            <th colspan="4">Charging</th>
             <tr>
-                <th class = "label">FR</th>
-                <td class = "data">FR</td>
-                <th class = "label">FL</td>
-                <td class = "data">FL</td>
+                <th class="label">Charging info</td>
+                <td class="data" id="chargeLinePower">KW</td>
+                <td class="data" id="chargeLineCurrent">A</td>
+                <td class="data" id="chargeLineVoltage">V</td>   
+            </tr>
+            <th class="label" colspan="4">Brake Temps</th>
+            <tr>
+                <th class="label">FR</th>
+                <td class="data"></td>
+                <th class="label">FL</td>
+                <td class="data"></td>
             </tr>
             <tr>
-                <th class = "label">RR</th>
-                <td class = "data">RR</td>
-                <th class = "label">RL</td>
-                <td class = "data">RL</td>
+                <th class="label">RR</th>
+                <td class="data"></td>
+                <th class="label">RL</td>
+                <td class="data"></td>
+            </tr>
+            <tr>
+                <th class="label" colspan="2">Display Status</th>
+                <td class="data" id="displayOn" colspan="2"></td>
+            </tr>
+            <tr>
+                <th class="label">Grade Estimate</th>
+                <td class="data" id="gradeEST"></td>
+                <th class="label">Internal</td>
+                <td class="data" id="gradeESTinternal"></td>
             </tr>
           </table>
     <script>
@@ -60,18 +77,30 @@
             var xhttp = new XMLHttpRequest();
             xhttp.onreadystatechange = function() {
                 if (this.readyState == 4 && this.status == 200) {
-                    //var data = JSON.parse(this.responseText);
-                    //document.getElementById("rear-torque").innerHTML = this.responseText;
-                    
-                    var x = document.getElementsByClassName("data");
-                    var i;
-                    for (i = 0; i < x.length; i++) {
-                    x[i].innerHTML = this.responseText;
-                    }
+                    var data = JSON.parse(this.responseText);
+
+                    document.getElementById("battAmps").innerHTML = data.battAmps;
+                    document.getElementById("battBeginningOfLifeEnergy").innerHTML = data.battBeginningOfLifeEnergy;
+                    document.getElementById("battPower").innerHTML = data.battPower;
+                    // document.getElementById("expectedEnergyRemaining").innerHTML = data.expectedEnergyRemaining;
+                    document.getElementById("battVolts").innerHTML = data.battVolts;
+                    document.getElementById("chargeLineCurrent").innerHTML = data.chargeLineCurrent;
+                    document.getElementById("chargeLinePower").innerHTML = data.chargeLinePower;
+                    document.getElementById("chargeLineVoltage").innerHTML = data.chargeLineVoltage;
+                    document.getElementById("displayOn").innerHTML = data.displayOn;
+                    document.getElementById("gradeEST").innerHTML = data.gradeEST;
+                    document.getElementById("gradeESTinternal").innerHTML = data.gradeESTinternal;
+                    document.getElementById("minBattTemp").innerHTML = data.minBattTemp;
+                    document.getElementById("maxBattTemp").innerHTML = data.maxBattTemp;
+                    document.getElementById("rearTorque").innerHTML = data.rearTorque;
+                    document.getElementById("nominalFullPackEnergy").innerHTML = data.nominalFullPackEnergy;
+                    document.getElementById("nominalEnergyRemaining").innerHTML = data.nominalEnergyRemaining;
+                    document.getElementById("maxRegen").innerHTML = data.maxRegen;
+                    document.getElementById("maxDischarge").innerHTML = data.maxDischarge;
                 }
             };
             xhttp.open("GET", "/refresh", true);
             xhttp.send();
-        }, 200 );
+        }, 250 );
     </script>
 </html>
