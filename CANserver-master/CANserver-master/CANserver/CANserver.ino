@@ -16,6 +16,7 @@
  *
 */
 
+#include <ArduinoJson.h>
 #include "esp32_can.h"  //RX GPIO16 TX GPIO 17 https://github.com/collin80/esp32_can
 #include "generalCANSignalAnalysis.h" //https://github.com/iChris93/ArduinoLibraryForCANSignalAnalysis
 #include "ESPAsyncWebServer.h" //https://github.com/me-no-dev/ESPAsyncWebServer
@@ -24,7 +25,6 @@
 #include <WiFi.h>
 #include <esp_now.h> // for ESP32 to ESP32 wifi communication
 #include "SPIFFS.h" // for web server files (html,styling)
-#include <ArduinoJson.h>
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
@@ -42,8 +42,8 @@ static int battVolts = 0;        //ID 132 byte 0+1 scale .01 V
 static int battAmps_temp = 0;
 static int battAmps = 0;         //ID 132 byte 2+3 scale -.1 offset 0 A
 
-static int minBattTemp_temp = 0;
 static int minBattTemp = 0;      //ID 312 SB 44 u9 scale .25 offset -25 C
+static int maxBattTemp = 0;
 
 static int battPower_temp = 0;   // V*A
 static int battPower = 0;        // V*A
@@ -55,47 +55,42 @@ static int gradeESTinternal_temp = 0;
 static int gradeESTinternal = 0;
 
 static int rearTorque = 0;       //ID 1D8 startbit 24 signed13 scale 0.25 NM
-static int battCoolantRate = 0;  //ID 241 SB 0 u9 scale .01 LPM
-static int PTCoolantRate = 0;    //ID 241 SB 22 u9 scale .01 LPM
 
+static int battCoolantRate = 0;  //ID 241 SB 0 u9 scale .01 LPM
+static int ptCoolantRate = 0;    //ID 241 SB 22 u9 scale .01 LPM
 static int battCoolantTemp = 0;  //ID 321 SB0 u10 scale 0.125 offset -40 C
 static int ptCoolantTemp = 0;    //ID 321 SB10 u10 scale 0.125 offset -40 C
+
 static int battRemainKWh = 0;    //ID 352 byte 1/2 scale .1 kWh
-static int battFullKWh = 0;      //ID 352 byte 0/1 scale .1 kWh
-static int steering_angle = 0;
-static int accelPedalPos = 0;
-static int brakePedalPos = 0;
 
 static int bmsMaxPackTemperature_temp = 0;
 static int bmsMaxPackTemperature = 0;
 
-static int nominalFullPackEnergy_temp = 0;
 static int nominalFullPackEnergy = 0;
+
+static int nominalEnergyRemaining = 0;
+
+static int expectedEnergyRemaining = 0;
 
 static int bmsMinPackTemperature_temp = 0;
 static int bmsMinPackTemperature = 0;
 
-static int displayOn_temp = 1;
-static int displayOn = 1;       //to turn off displays if center screen is off
-
 static int chargeLineVoltage_temp = 0;
 static int chargeLineVoltage = 0;
+
 static int chargeLineCurrent_temp = 0;
 static int chargeLineCurrent = 0;
+
 static int chargeLinePower_temp = 0;
 static int chargeLinePower = 0;
 
-static int maxRegen_temp = 0;         //ID 252 Bytes 0+1 scale .01 kW
+static int displayOn = 0;       //to turn off displays if center screen is off
+
 static int maxRegen = 0;         //ID 252 Bytes 0+1 scale .01 kW
-
-static int maxDischarge_temp = 0;        //ID 252 Bytes 2+3 scale .01 kW
 static int maxDischarge = 0;        //ID 252 Bytes 2+3 scale .01 kW
-
-static int battBeginningOfLifeEnergy_temp = 0;
 static int battBeginningOfLifeEnergy = 0;
 
 unsigned long previouscycle = 0;
-
 static int interval = 100;
 
 // replace with your desired AP credentials
@@ -109,6 +104,9 @@ uint8_t receiverMacAddress[] = {0xAC, 0x67, 0xB2, 0x2C, 0x3C, 0xD0};
 
 // create AsyncWebServer object on port 80
 AsyncWebServer server(80);
+
+//StaticJsonDocument<200> doc;
+DynamicJsonDocument doc(2048);
 
 // message struct
 typedef struct struct_message {
@@ -305,8 +303,9 @@ void setup(){
 
     // route to refesh
     server.on("/refresh", HTTP_GET, [](AsyncWebServerRequest *request){
-        //request->send(200, "application/json", doc);
-        request->send(200, "text/plain", String(rearTorque).c_str());
+        String input = "";
+        serializeJson(doc, input); // serialize before we send!
+        request->send(200, "text/plain", input);
     });
 
     // start server
@@ -314,6 +313,27 @@ void setup(){
 }
 
 void loop() {
+
+    // update json object that will be sent to display over wifi
+    doc["battAmps"] = battAmps;
+    doc["battBeginningOfLifeEnergy"] = battBeginningOfLifeEnergy;
+    doc["battPower"] = battPower;
+    doc["battRemainKWh"] = battRemainKWh;
+    doc["battVolts"] = battVolts;
+    doc["chargeLineCurrent"] = chargeLineCurrent;
+    doc["chargeLinePower"] = chargeLinePower;
+    doc["chargeLineVoltage"] = chargeLineVoltage;
+    doc["displayOn"] = displayOn;
+    doc["gradeEST"] = gradeEST;
+    doc["gradeESTinternal"] = gradeESTinternal;
+    doc["minBattTemp"] = minBattTemp;
+    doc["maxBattTemp"] = minBattTemp;
+    doc["rearTorque"] = rearTorque;
+    doc["nominalFullPackEnergy"] = nominalFullPackEnergy;
+    doc["nominalEnergyRemaining"] = nominalEnergyRemaining;
+    doc["maxRegen"] = maxRegen;
+    doc["maxDischarge"] = maxDischarge;
+    doc["nominalFullPackEnergy"] = nominalFullPackEnergy;
 
     unsigned long currentMillis = millis();
 
@@ -327,6 +347,11 @@ void loop() {
             minBattTemp = minBattTemp + 1;
             if (minBattTemp == 100) {
                 minBattTemp = -32;
+            }
+
+            maxBattTemp = maxBattTemp + 1;
+            if (maxBattTemp == 100) {
+                maxBattTemp = -32;
             }
 
             rearTorque = rearTorque + 1;
@@ -353,15 +378,35 @@ void loop() {
             if (displayOn == 2) {
                 displayOn = 0;
             }
+            
+            battBeginningOfLifeEnergy = battBeginningOfLifeEnergy + 1;
+            if (battBeginningOfLifeEnergy == 80) {
+                battBeginningOfLifeEnergy = 60;
+            }
 
-            battCoolantRate = battCoolantRate + 1;
-            if (battCoolantRate == 10) {
-                battCoolantRate = 0;
+            expectedEnergyRemaining = expectedEnergyRemaining + 1;
+            if (expectedEnergyRemaining == 80) {
+                expectedEnergyRemaining = 60;
             }
 
             nominalFullPackEnergy = nominalFullPackEnergy + 1;
             if (nominalFullPackEnergy == 99) {
                 nominalFullPackEnergy = 50;
+            }
+            
+            chargeLineCurrent = chargeLineCurrent + 1;
+            if (chargeLineCurrent == 99) {
+                chargeLineCurrent = 50;
+            }
+            
+            chargeLinePower = chargeLinePower + 1;
+            if (chargeLinePower == 99) {
+                chargeLinePower = 50;
+            }
+            
+            chargeLineVoltage = chargeLineVoltage + 1;
+            if (chargeLineVoltage == 99) {
+                chargeLineVoltage = 50;
             }
 
             maxRegen = maxRegen + 1;
@@ -372,6 +417,16 @@ void loop() {
             maxDischarge = maxDischarge + 1;
             if (maxDischarge == 99) {
                 maxDischarge = 50;
+            }
+
+            gradeEST = gradeEST + 1;
+            if (gradeEST == 99) {
+                gradeEST = 50;
+            }
+
+            gradeESTinternal = gradeESTinternal + 1;
+            if (gradeESTinternal == 99) {
+                gradeESTinternal = 50;
             }
 
             sendToDisplay(0x132, battVolts, battAmps, battPower, "V", "A", "KW");
@@ -412,7 +467,6 @@ void loop() {
             // maxRegen;
             // maxDischarge; 
             // battRemainKWh; 
-            // battFullKWh;
             // nominalFullPackEnergy; 
         }
     }
@@ -471,10 +525,10 @@ void loop() {
                 }
                 break;
             
-            case 0x241: // VCFRONT_coolant
-                battCoolantRate = analyzeMessage.getSignal(message.data.uint64, 0, 9, 0.1, 0, false, littleEndian);  //ID 241 SB 0 u9 scale .01 LPM
-                //PTCoolantRate = analyzeMessage.getSignal(message.data.uint64, 22, 9, 0.1, 0, false, littleEndian);    //ID 241 SB 22 u9 scale .01 LPM
-                break;
+            // case 0x241: // VCFRONT_coolant
+            //     battCoolantRate = analyzeMessage.getSignal(message.data.uint64, 0, 9, 0.1, 0, false, littleEndian);  //ID 241 SB 0 u9 scale .01 LPM
+            //     ptCoolantRate = analyzeMessage.getSignal(message.data.uint64, 22, 9, 0.1, 0, false, littleEndian);    //ID 241 SB 22 u9 scale .01 LPM
+            //     break;
 
             case 0x264: // DIR_torque
                 if (message.length == 8) {
@@ -499,6 +553,9 @@ void loop() {
 
             case 0x312: // BMSthermal
                 if (message.length == 8) {
+                    maxBattTemp = analyzeMessage.getSignal(message.data.uint64, 53, 9, 0.25, -25, false, littleEndian);
+                    maxBattTemp = maxBattTemp * (9/5) + 32; // convert to f
+
                     minBattTemp = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
                     minBattTemp = minBattTemp * (9/5) + 32; // convert to f
                 }
@@ -513,8 +570,8 @@ void loop() {
 
             case 0x352: // BMS_energyStatus
                 if (message.length == 8) {
-                    battRemainKWh = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
-                    battFullKWh = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
+                    expectedEnergyRemaining = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
+                    nominalEnergyRemaining = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
                     nominalFullPackEnergy = analyzeMessage.getSignal(message.data.uint64, 0, 11, 0.1, 0, false, littleEndian);
                 }
                 break;
