@@ -1,14 +1,15 @@
+@font-face {
+    font-family: 'Gotham-Medium';
+    src: url(fonts/Gotham-Medium.otf);
+}
 html {
-    font-family: "Courier New";
+    font-family: Gotham-Medium;
     display: inline-block;
     margin: 0px auto;
     text-align: center;
     background-color: black;
     color: rgb(255, 255, 255);
 }
-img {
-    width: 500px;
-  }
 h2 { 
     font-size: 2rem; 
 }
@@ -24,6 +25,7 @@ table, th {
     border-collapse: collapse;
 } 
 td {
+    font-family: Gotham-Medium;
     padding: 5px;
     border: 1px solid rgb(54, 54, 54);
     vertical-align:middle;
