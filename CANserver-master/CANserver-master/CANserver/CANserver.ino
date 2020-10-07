@@ -122,9 +122,10 @@ typedef struct struct_message {
 
 // callback function - gives us feedback about the sent data
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-      
-    Serial.print("\r\nLast Packet Send Status:\t");
-    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+    if (debug) {
+        Serial.print("\r\nLast Packet Send Status:\t");
+        Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+    }
 }
 
 int sendToDisplay(uint32_t can_id, int valueToSend1, String unit1) {
@@ -140,24 +141,26 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, String unit1) {
     payload.unit3 = "";
     
     esp_err_t result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
-  
-    if (result == ESP_OK) {
-        Serial.println("Sent with success");
-    }
-    else {
-        Serial.println("Error sending the data");
-    }
-
-    Serial.print("Bytes Sent: ");
-    Serial.println(sizeof(payload));
-
-    Serial.print("int_value_1 sent: ");
-    Serial.println(payload.int_value_1);
     
-    Serial.print("unit1 sent: ");
-    Serial.println(payload.unit1);
+    if (debug) {
+        if (result == ESP_OK) {
+            Serial.println("Sent with success");
+        }
+        else {
+            Serial.println("Error sending the data");
+        }
 
-    Serial.print("\n");
+        Serial.print("Bytes Sent: ");
+        Serial.println(sizeof(payload));
+
+        Serial.print("int_value_1 sent: ");
+        Serial.println(payload.int_value_1);
+        
+        Serial.print("unit1 sent: ");
+        Serial.println(payload.unit1);
+
+        Serial.print("\n");
+    }
 
     return result;
 }
@@ -174,29 +177,31 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, int valueToSend2, String un
     
     esp_err_t result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
   
-    if (result == ESP_OK) {
-        Serial.println("Sent with success");
+    if (debug) {
+        if (result == ESP_OK) {
+            Serial.println("Sent with success");
+        }
+        else {
+            Serial.println("Error sending the data");
+        }
+
+        Serial.print("Bytes Sent: ");
+        Serial.println(sizeof(payload));
+
+        Serial.print("int_value_1 sent: ");
+        Serial.println(payload.int_value_1);
+
+        Serial.print("int_value_2 sent: ");
+        Serial.println(payload.int_value_2);
+        
+        Serial.print("Unit1 sent: ");
+        Serial.println(payload.unit1);
+
+        Serial.print("Unit2 sent: ");
+        Serial.println(payload.unit2);
+
+        Serial.print("\n");
     }
-    else {
-        Serial.println("Error sending the data");
-    }
-
-    Serial.print("Bytes Sent: ");
-    Serial.println(sizeof(payload));
-
-    Serial.print("int_value_1 sent: ");
-    Serial.println(payload.int_value_1);
-
-    Serial.print("int_value_2 sent: ");
-    Serial.println(payload.int_value_2);
-    
-    Serial.print("Unit1 sent: ");
-    Serial.println(payload.unit1);
-
-    Serial.print("Unit2 sent: ");
-    Serial.println(payload.unit2);
-
-    Serial.print("\n");
 
     return result;
 }
@@ -215,29 +220,31 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, int valueToSend2, int value
     
     esp_err_t result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
   
-    if (result == ESP_OK) {
-        Serial.println("Sent with success");
+    if (debug) {
+        if (result == ESP_OK) {
+            Serial.println("Sent with success");
+        }
+        else {
+            Serial.println("Error sending the data");
+        }
+
+        Serial.print("Bytes Sent: ");
+        Serial.println(sizeof(payload));
+
+        Serial.print("int_value_1 sent: ");
+        Serial.println(payload.int_value_1);
+
+        Serial.print("int_value_2 sent: ");
+        Serial.println(payload.int_value_2);
+
+        Serial.print("Unit1 sent: ");
+        Serial.println(payload.unit1);
+
+        Serial.print("Unit2 sent: ");
+        Serial.println(payload.unit2);
+
+        Serial.print("\n");
     }
-    else {
-        Serial.println("Error sending the data");
-    }
-
-    Serial.print("Bytes Sent: ");
-    Serial.println(sizeof(payload));
-
-    Serial.print("int_value_1 sent: ");
-    Serial.println(payload.int_value_1);
-
-    Serial.print("int_value_2 sent: ");
-    Serial.println(payload.int_value_2);
-
-    Serial.print("Unit1 sent: ");
-    Serial.println(payload.unit1);
-
-    Serial.print("Unit2 sent: ");
-    Serial.println(payload.unit2);
-
-    Serial.print("\n");
 
     return result;
 }
@@ -303,13 +310,31 @@ void setup(){
 
     // route to refesh
     server.on("/refresh", HTTP_GET, [](AsyncWebServerRequest *request){
-        String input = "";
-        serializeJson(doc, input); // serialize before we send!
-        request->send(200, "text/plain", input);
+        String input = "";         // string that will contain the json doc
+        serializeJson(doc, input); // serialize json before we send!
+        
+        request->send(200, "text/plain", input); // send the json in string format
     });
 
     // start server
     server.begin();
+
+    // Serial.println("1");
+    // File file = SPIFFS.open("/data/fonts/Gotham-Medium.otf");
+    
+    // if (!file) {
+    //     Serial.println("There was an error opening the file for reading");
+    // } else {
+    //     Serial.println("File opened Successfully");
+    // }
+    // Serial.println("2");
+
+    // const char * EspClass::getSdkVersion(void)
+    // {
+    //     return esp_get_idf_version();
+    // }
+    
+    // file.close();
 }
 
 void loop() {
@@ -342,7 +367,7 @@ void loop() {
         if (currentMillis - previouscycle >= interval) {
             previouscycle = currentMillis;
 
-            //digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
+            digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
             
             minBattTemp = minBattTemp + 1;
             if (minBattTemp == 100) {
@@ -360,12 +385,12 @@ void loop() {
             }
 
             battVolts = battVolts + 1;
-            if (battVolts == 450) {
-                battVolts = 200;
+            if (battVolts == 400) {
+                battVolts = -100;
             }
 
             battAmps = battAmps + 1;
-            if (battAmps == 500) {
+            if (battAmps == 150) {
                 battAmps = -99;
             }
 
@@ -393,7 +418,12 @@ void loop() {
             if (nominalFullPackEnergy == 99) {
                 nominalFullPackEnergy = 50;
             }
-            
+
+            nominalEnergyRemaining = nominalEnergyRemaining + 1;
+            if (nominalEnergyRemaining == 99) {
+                nominalEnergyRemaining = 50;
+            }
+
             chargeLineCurrent = chargeLineCurrent + 1;
             if (chargeLineCurrent == 99) {
                 chargeLineCurrent = 50;
@@ -411,7 +441,7 @@ void loop() {
 
             maxRegen = maxRegen + 1;
             if (maxRegen == 99) {
-                maxRegen = 50;
+                maxRegen = 0;
             }
 
             maxDischarge = maxDischarge + 1;
@@ -420,8 +450,8 @@ void loop() {
             }
 
             gradeEST = gradeEST + 1;
-            if (gradeEST == 99) {
-                gradeEST = 50;
+            if (gradeEST == 40) {
+                gradeEST = -40;
             }
 
             gradeESTinternal = gradeESTinternal + 1;
@@ -430,6 +460,9 @@ void loop() {
             }
 
             sendToDisplay(0x132, battVolts, battAmps, battPower, "V", "A", "KW");
+            sendToDisplay(0x312, minBattTemp, "F");
+            //sendToDisplay(0x336, maxRegen, "kW");
+            sendToDisplay(0x267, gradeEST, "%");
             
             //sendToDisplay(0x1D8, RearTorque, "NM");
 
@@ -443,9 +476,9 @@ void loop() {
             //     BattPower_temp = BattPower;
             // }
 
-            // if (MinBattTemp != MinBattTemp_temp) {
-            //     sendToDisplay(0x312, MinBattTemp, "F");
-            //     MinBattTemp_temp = MinBattTemp;
+            // if (minBattTemp != minBattTemp_temp) {
+            //     sendToDisplay(0x312, minBattTemp, "F");
+            //     minBattTemp_temp = minBattTemp;
             // }
             
 
