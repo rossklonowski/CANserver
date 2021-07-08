@@ -16,7 +16,7 @@
  *
 */
 
-#include <ArduinoJson.h>
+//#include <ArduinoJson.h>
 #include "esp32_can.h"  //RX GPIO16 TX GPIO 17 https://github.com/collin80/esp32_can
 #include "generalCANSignalAnalysis.h" //https://github.com/iChris93/ArduinoLibraryForCANSignalAnalysis
 #include "ESPAsyncWebServer.h" //https://github.com/me-no-dev/ESPAsyncWebServer
@@ -25,6 +25,7 @@
 #include <WiFi.h>
 #include <esp_now.h> // for ESP32 to ESP32 wifi communication
 #include "SPIFFS.h" // for web server files (html,styling)
+#include <math.h>
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
@@ -37,16 +38,18 @@ static bool debug = false;
 static bool serial_switch = false;
 
 static int battVolts_temp = 0;
-static int battVolts = 0;        //ID 132 byte 0+1 scale .01 V
+static int battVolts = 300;        //ID 132 byte 0+1 scale .01 V
 
 static int battAmps_temp = 0;
 static int battAmps = 0;         //ID 132 byte 2+3 scale -.1 offset 0 A
 
-static int minBattTemp = 0;      //ID 312 SB 44 u9 scale .25 offset -25 C
-static int maxBattTemp = 0;
+static double minBattTemp = 0;      //ID 312 SB 44 u9 scale .25 offset -25 C
+static double maxBattTemp = 0;
+static double avgBattTemp = 0;
 
 static int battPower_temp = 0;   // V*A
 static int battPower = 0;        // V*A
+static int battPowerW = 0;        // V*A
 
 static int gradeEST_temp = 0;
 static int gradeEST = 0;
@@ -90,6 +93,13 @@ static int maxRegen = 0;         //ID 252 Bytes 0+1 scale .01 kW
 static int maxDischarge = 0;        //ID 252 Bytes 2+3 scale .01 kW
 static int battBeginningOfLifeEnergy = 0;
 
+static int GPSSpeedKPH = 0;
+static int GPSSpeedMPH = 0;
+
+// custom signals
+static int instantaneousEfficiency = 0;
+static double UIspeed = 0;
+
 unsigned long previouscycle = 0;
 static int interval = 100;
 
@@ -115,6 +125,7 @@ typedef struct struct_message {
     int int_value_1;
     int int_value_2;
     int int_value_3;
+    double double_value_1;
     String unit1;
     String unit2;
     String unit3;
@@ -155,6 +166,44 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, String unit1) {
 
         Serial.print("int_value_1 sent: ");
         Serial.println(payload.int_value_1);
+        
+        Serial.print("unit1 sent: ");
+        Serial.println(payload.unit1);
+
+        Serial.print("\n");
+    }
+
+    return result;
+}
+
+int sendToDisplay(uint32_t can_id, double valueToSend1, String unit1) {
+
+    struct_message payload;
+
+    payload.can_id = can_id;
+    payload.int_value_1 = -1;
+    payload.int_value_2 = -1;
+    payload.int_value_3 = -1;
+    payload.double_value_1 = valueToSend1;
+    payload.unit1 = unit1;
+    payload.unit2 = "";
+    payload.unit3 = "";
+    
+    esp_err_t result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
+    
+    if (debug) { 
+        if (result == ESP_OK) {
+            Serial.println("Sent with success");
+        }
+        else {
+            Serial.println("Error sending the data");
+        }
+
+        Serial.print("Bytes Sent: ");
+        Serial.println(sizeof(payload));
+
+        Serial.print("double_value_1 sent: ");
+        Serial.println(payload.double_value_1);
         
         Serial.print("unit1 sent: ");
         Serial.println(payload.unit1);
@@ -342,7 +391,7 @@ void loop() {
     // update json object that will be sent to display over wifi
     doc["battAmps"] = battAmps;
     doc["battBeginningOfLifeEnergy"] = battBeginningOfLifeEnergy;
-    doc["battPower"] = battPower;
+    doc["battPower"] = battPowerW;
     doc["battRemainKWh"] = battRemainKWh;
     doc["battVolts"] = battVolts;
     doc["chargeLineCurrent"] = chargeLineCurrent;
@@ -352,7 +401,7 @@ void loop() {
     doc["gradeEST"] = gradeEST;
     doc["gradeESTinternal"] = gradeESTinternal;
     doc["minBattTemp"] = minBattTemp;
-    doc["maxBattTemp"] = minBattTemp;
+    doc["maxBattTemp"] = maxBattTemp;
     doc["rearTorque"] = rearTorque;
     doc["nominalFullPackEnergy"] = nominalFullPackEnergy;
     doc["nominalEnergyRemaining"] = nominalEnergyRemaining;
@@ -369,138 +418,128 @@ void loop() {
 
             digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
             
-            minBattTemp = minBattTemp + 1;
-            if (minBattTemp == 100) {
-                minBattTemp = -32;
-            }
+            // minBattTemp = minBattTemp + 0.1;
+            // if (minBattTemp > 80) {
+            //     minBattTemp = 10;
+            // }
 
-            maxBattTemp = maxBattTemp + 1;
-            if (maxBattTemp == 100) {
-                maxBattTemp = -32;
-            }
+            // maxBattTemp = maxBattTemp + 0.1;
+            // if (maxBattTemp > 74) {
+            //     maxBattTemp = 16;
+            // }
 
-            rearTorque = rearTorque + 1;
-            if (rearTorque == 150) {
-                rearTorque = -150;
-            }
+            // avgBattTemp = avgBattTemp + 0.1;
+            // if (avgBattTemp > 80) {
+            //     avgBattTemp = 12;
+            // }
 
-            battVolts = battVolts + 1;
-            if (battVolts == 400) {
-                battVolts = -100;
-            }
 
-            battAmps = battAmps + 1;
-            if (battAmps == 150) {
-                battAmps = -99;
-            }
+            // rearTorque = rearTorque + 1;
+            // if (rearTorque == 150) {
+            //     rearTorque = -150;
+            // }
 
-            battPower = battPower + 1;
-            if (battPower == 150) {
-                battPower = -150;
-            }
+            // battVolts = battVolts + 1;
+            // if (battVolts == 400) {
+            //     battVolts = 300;
+            // }
 
-            displayOn = displayOn + 1;
-            if (displayOn == 2) {
-                displayOn = 0;
-            }
+            // battAmps = battAmps + 1;
+            // if (battAmps == 150) {
+            //     battAmps = -99;
+            // }
+
+            // battPower = battPower + 1;
+            // if (battPower == 250) {
+            //     battPower = -50;
+            // }
+
+            // displayOn = displayOn + 1;
+            // if (displayOn == 2) {
+            //     displayOn = 0;
+            // }
             
-            battBeginningOfLifeEnergy = battBeginningOfLifeEnergy + 1;
-            if (battBeginningOfLifeEnergy == 80) {
-                battBeginningOfLifeEnergy = 60;
-            }
+            // battBeginningOfLifeEnergy = battBeginningOfLifeEnergy + 1;
+            // if (battBeginningOfLifeEnergy == 80) {
+            //     battBeginningOfLifeEnergy = 60;
+            // }
 
-            expectedEnergyRemaining = expectedEnergyRemaining + 1;
-            if (expectedEnergyRemaining == 80) {
-                expectedEnergyRemaining = 60;
-            }
+            // expectedEnergyRemaining = expectedEnergyRemaining + 1;
+            // if (expectedEnergyRemaining == 80) {
+            //     expectedEnergyRemaining = 60;
+            // }
 
-            nominalFullPackEnergy = nominalFullPackEnergy + 1;
-            if (nominalFullPackEnergy == 99) {
-                nominalFullPackEnergy = 50;
-            }
+            // nominalFullPackEnergy = nominalFullPackEnergy + 1;
+            // if (nominalFullPackEnergy == 99) {
+            //     nominalFullPackEnergy = 50;
+            // }
 
-            nominalEnergyRemaining = nominalEnergyRemaining + 1;
-            if (nominalEnergyRemaining == 99) {
-                nominalEnergyRemaining = 50;
-            }
+            // nominalEnergyRemaining = nominalEnergyRemaining + 1;
+            // if (nominalEnergyRemaining == 99) {
+            //     nominalEnergyRemaining = 50;
+            // }
 
-            chargeLineCurrent = chargeLineCurrent + 1;
-            if (chargeLineCurrent == 99) {
-                chargeLineCurrent = 50;
-            }
+            // chargeLineCurrent = chargeLineCurrent + 1;
+            // if (chargeLineCurrent == 99) {
+            //     chargeLineCurrent = 50;
+            // }
             
-            chargeLinePower = chargeLinePower + 1;
-            if (chargeLinePower == 99) {
-                chargeLinePower = 50;
-            }
+            // chargeLinePower = chargeLinePower + 1;
+            // if (chargeLinePower == 99) {
+            //     chargeLinePower = 50;
+            // }
             
-            chargeLineVoltage = chargeLineVoltage + 1;
-            if (chargeLineVoltage == 99) {
-                chargeLineVoltage = 50;
-            }
+            // chargeLineVoltage = chargeLineVoltage + 1;
+            // if (chargeLineVoltage == 99) {
+            //     chargeLineVoltage = 50;
+            // }
 
-            maxRegen = maxRegen + 1;
-            if (maxRegen == 99) {
-                maxRegen = 0;
-            }
+            // maxRegen = maxRegen + 1;
+            // if (maxRegen == 99) {
+            //     maxRegen = 0;
+            // }
 
-            maxDischarge = maxDischarge + 1;
-            if (maxDischarge == 99) {
-                maxDischarge = 50;
-            }
+            // maxDischarge = maxDischarge + 1;
+            // if (maxDischarge == 99) {
+            //     maxDischarge = 50;
+            // }
 
-            gradeEST = gradeEST + 1;
-            if (gradeEST == 40) {
-                gradeEST = -40;
-            }
+            // gradeEST = gradeEST + 1;
+            // if (gradeEST == 40) {
+            //     gradeEST = -40;
+            // }
 
-            gradeESTinternal = gradeESTinternal + 1;
-            if (gradeESTinternal == 99) {
-                gradeESTinternal = 50;
+            // UIspeed = UIspeed + 0.1;
+            // if (UIspeed > 70) {
+            //     UIspeed = 0.0;
+            // }
+
+            // GPSSpeedMPH = GPSSpeedMPH + 1;
+            // if (GPSSpeedMPH > 70) {
+            //     GPSSpeedMPH = 0;
+            // }
+
+            // instantaneousEfficiency = instantaneousEfficiency + 1;
+            // if (instantaneousEfficiency > 200) {
+            //     instantaneousEfficiency = -100;
+            // }
+            
+            avgBattTemp = (maxBattTemp + minBattTemp) / 2.0;
+
+            battPowerW = battPower * 1000;
+
+            if (UIspeed == 0) {
+                instantaneousEfficiency = 0;
+            } else {
+                instantaneousEfficiency = round(battPowerW / UIspeed); // UI Speed is in miles per hour
+                if (instantaneousEfficiency >= 999) {
+                    instantaneousEfficiency = 999;
+                }
             }
 
             sendToDisplay(0x132, battVolts, battAmps, battPower, "V", "A", "KW");
-            sendToDisplay(0x312, minBattTemp, "F");
-            //sendToDisplay(0x336, maxRegen, "kW");
-            sendToDisplay(0x267, gradeEST, "%");
-            
-            //sendToDisplay(0x1D8, RearTorque, "NM");
-
-            // if ( (BattVolts_temp != BattVolts) || (BattAmps != BattAmps_temp) || (BattPower != BattPower) ) {
-            //     sendToWebPage()
-                
-            //     sendToDisplay(0x132, BattVolts, BattAmps, BattPower, "V", "A", "KW");
-                
-            //     BattVolts_temp = BattVolts;
-            //     BattAmps_temp = BattAmps;
-            //     BattPower_temp = BattPower;
-            // }
-
-            // if (minBattTemp != minBattTemp_temp) {
-            //     sendToDisplay(0x312, minBattTemp, "F");
-            //     minBattTemp_temp = minBattTemp;
-            // }
-            
-
-            // displayOn
-            // battVolts
-            // battAmps 
-            // battPower 
-            // rearTorque 
-            // battCoolantRate;
-            // PTCoolantRate;
-            // chargeLineVoltage;
-            // chargeLineCurrent;
-            // chargeLinePower; 
-            // gradeEST; 
-            // gradeESTinternal;
-            // battBeginningOfLifeEnergy;
-            // minBattTemp;
-            // minBattTemp;
-            // maxRegen;
-            // maxDischarge; 
-            // battRemainKWh; 
-            // nominalFullPackEnergy; 
+            sendToDisplay(0x312, avgBattTemp, "F");
+            sendToDisplay(0x000, instantaneousEfficiency, "wh/m");
         }
     }
     
@@ -543,7 +582,8 @@ void loop() {
                     if ((tempvolts > 290) && (tempvolts < 420)) { //avoid some bad messages
                         battVolts = tempvolts;
                         battAmps = analyzeMessage.getSignal(message.data.uint64, 16, 16, -0.1, 0, true, littleEndian); //signed 15, mask off sign
-                        battPower = battVolts * battAmps / 100;
+                        battPowerW = battVolts * battAmps; 
+                        battPower = battVolts * battAmps / 1000;
                     }
                 }
                 break;
@@ -557,13 +597,8 @@ void loop() {
                     }
                 }
                 break;
-            
-            // case 0x241: // VCFRONT_coolant
-            //     battCoolantRate = analyzeMessage.getSignal(message.data.uint64, 0, 9, 0.1, 0, false, littleEndian);  //ID 241 SB 0 u9 scale .01 LPM
-            //     ptCoolantRate = analyzeMessage.getSignal(message.data.uint64, 22, 9, 0.1, 0, false, littleEndian);    //ID 241 SB 22 u9 scale .01 LPM
-            //     break;
 
-            case 0x264: // DIR_torque
+            case 0x264:
                 if (message.length == 8) {
                     chargeLineVoltage = analyzeMessage.getSignal(message.data.uint64, 0, 14, .0333, 0, false, littleEndian);
                     chargeLineCurrent = analyzeMessage.getSignal(message.data.uint64, 14, 9, 0.1, 0, false, littleEndian);
@@ -591,21 +626,37 @@ void loop() {
 
                     minBattTemp = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
                     minBattTemp = minBattTemp * (9/5) + 32; // convert to f
+
+                    avgBattTemp = (maxBattTemp + minBattTemp) / 2.0;
                 }
                 break;
 
-            case 0x336: // 
+            case 0x252: // 
                 if (message.length == 8) {
-                    maxRegen =  analyzeMessage.getSignal(message.data.uint64, 16, 8, 1, -100, false, littleEndian);
-                    maxDischarge = analyzeMessage.getSignal(message.data.uint64, 0, 10, 1, 0, false, littleEndian);
+                    maxRegen =  analyzeMessage.getSignal(message.data.uint64, 0, 16, 0.01, 0, false, littleEndian);
+                    maxDischarge = analyzeMessage.getSignal(message.data.uint64, 16, 16, 0.01, 0, false, littleEndian);
                 }
                 break;
 
             case 0x352: // BMS_energyStatus
                 if (message.length == 8) {
-                    expectedEnergyRemaining = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
-                    nominalEnergyRemaining = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
+                    expectedEnergyRemaining = analyzeMessage.getSignal(message.data.uint64, 22, 11, 0.1, 0, false, littleEndian);
+                    nominalEnergyRemaining = analyzeMessage.getSignal(message.data.uint64, 11,11, 0.1, 0, false, littleEndian);
                     nominalFullPackEnergy = analyzeMessage.getSignal(message.data.uint64, 0, 11, 0.1, 0, false, littleEndian);
+                }
+                break;
+                    
+            case 0x257: // UIspeed
+                if (message.length == 8) {
+                    UIspeed = analyzeMessage.getSignal(message.data.uint64, 12, 12, 0.08, -40, false, littleEndian); // this is in kph
+                    UIspeed = UIspeed * 0.621371; // for mph
+                }
+                break;
+
+            case 0x3D9: // gps speed (chassis bus)
+                if (message.length == 8) {
+                    GPSSpeedKPH = analyzeMessage.getSignal(message.data.uint64, 24, 16, 0.00390625, 0, false, littleEndian); // this is in kph
+                    GPSSpeedMPH = GPSSpeedKPH * 0.621371; // convert to mph
                 }
                 break;
     
