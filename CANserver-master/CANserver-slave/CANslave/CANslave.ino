@@ -4,31 +4,74 @@
 #include "Adafruit_LEDBackpack.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <LiquidCrystal.h>
+//#include "display.h"
+#include "bargraph.h"
+#include "button.h" 
+#include "lcd.h"
+#include "alphanumeric.h"
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
 
 static bool isIdle = true;
 static bool isFirstRecv = true;
-static bool debug = true;
+static bool debug = false;
+static int lastCount = 0;
+static int refreshCount = 0;
 
+static int maxRegenPower = 100;
+static int tempMaxRegen = 0;
+static int tempMaxDischarge = 0;
+
+// batt I V P
 static bool displayBattPower = true;
 static bool displayBattAmps = false;
 static bool displayBattVolts = false;
+// grade
 static bool displayGrade = false;
-static bool displayBattTemp = true;
+// batt temp
+static bool displayBattTempLCD = true;
+static bool displayBattTempAlphaNum = false;
+// drive / regen limits
 static bool displayLimits = false;
+// wh/mi
 static bool displayInstantaneousEfficiency = true;
 static bool displayVehicleSpeed = false;
+static bool displayZeroToSixty = false;
+static bool displaySpeed = false;
+static bool displaySOCAveLCD = true;
 
-Adafruit_AlphaNum4 alpha1 = Adafruit_AlphaNum4();
-Adafruit_AlphaNum4 alpha2 = Adafruit_AlphaNum4();
-Adafruit_AlphaNum4 alpha3 = Adafruit_AlphaNum4();
-Adafruit_AlphaNum4 alpha4 = Adafruit_AlphaNum4();
-Adafruit_AlphaNum4 alpha5 = Adafruit_AlphaNum4();
+// front and rear power
+static bool displayFrontPowerLCD = false;
+static bool displayRearPowerLCD = false;
+static bool displayRearPowerBarGraph = true;
+static bool displayFrontPowerBarGraph = true;
 
-Adafruit_AlphaNum4 displaysArray[] = {alpha1, alpha2, alpha3, alpha4, alpha5};
-static int displaysArraySize = 5;
+// static int active = 0;
+
+// dataTogglesRowZerop[active] = true;
+
+// static bool dataTogglesRowZero[] = {
+//                 displayBattTempLCD,
+//                 displaySOCAveLCD, 
+//                 displayFrontPowerLCD, 
+//                 displayRearPowerLCD, 
+//                 displayRearPowerBarGraph, 
+//                 displayFrontPowerBarGraph
+// };
+
+// const int red_light_pin = 27;
+// const int green_light_pin = 14;
+// const int blue_light_pin = 12;
+
+// // setting PWM properties
+// const int freq = 5000;
+// const int ledChannel = 5; // r
+// const int ledChanne2 = 6; // g this works
+// const int ledChanne3 = 4; // b
+// const int resolution = 8;
+
 
 typedef struct payload_struct {
     uint32_t can_id;
@@ -41,468 +84,125 @@ typedef struct payload_struct {
     String unit3;
 } payload_struct;
 
-void displayLoadingText() {
-
-    for (int i = 5; i < 10; i++) {
-        for (int j = 0; j < 4; j++) {
-            displaysArray[i].writeDigitRaw(j, 0xFFFF);
-        }
-        displaysArray[i].writeDisplay();
-    }
-    
-    delay(1000);
-    
-    displaysArray[5].writeDigitAscii(0, 'S');
-    displaysArray[5].writeDigitAscii(1, 'T');
-    displaysArray[5].writeDigitAscii(2, 'A');
-    displaysArray[5].writeDigitAscii(3, 'R');
-
-    displaysArray[6].writeDigitAscii(0, 'T');
-    displaysArray[6].writeDigitAscii(1, 'I');
-    displaysArray[6].writeDigitAscii(2, 'N');
-    displaysArray[6].writeDigitAscii(3, 'G');
-
-    displaysArray[7].writeDigitAscii(0, 46, true);
-    displaysArray[7].writeDigitAscii(1, 46, true);
-    displaysArray[7].writeDigitAscii(2, 46, true);
-    displaysArray[7].writeDigitAscii(3, 46, true);
-
-    displaysArray[8].writeDigitAscii(0, 46, true);
-    displaysArray[8].writeDigitAscii(1, 46, true);
-    displaysArray[8].writeDigitAscii(2, 46, true);
-    displaysArray[8].writeDigitAscii(3, 46, true);
-
-    displaysArray[9].writeDigitAscii(0, 46, true);
-    displaysArray[9].writeDigitAscii(1, 46, true);
-    displaysArray[9].writeDigitAscii(2, 46, true);
-    displaysArray[9].writeDigitAscii(3, 46, true);
-
-    // displaysArray[5].writeDigitRaw(0, 0x8000);
-    // displaysArray[5].writeDigitRaw(1, 0x4000);
-    // displaysArray[5].writeDigitRaw(2, 0x2000);
-    // displaysArray[5].writeDigitRaw(3, 0x1000);
-
-    // displaysArray[6].writeDigitRaw(0, 0x800);
-    // displaysArray[6].writeDigitRaw(1, 0x400);
-    // displaysArray[6].writeDigitRaw(2, 0x200);
-    // displaysArray[6].writeDigitRaw(3, 0x100);
-
-    // displaysArray[7].writeDigitRaw(0, 0x80);
-    // displaysArray[7].writeDigitRaw(1, 0x40);
-    // displaysArray[7].writeDigitRaw(2, 0x20);
-    // displaysArray[7].writeDigitRaw(3, 0x10);
-
-    // displaysArray[8].writeDigitRaw(0, 0x8);
-    // displaysArray[8].writeDigitRaw(1, 0x4);
-    // displaysArray[8].writeDigitRaw(2, 0x2);
-    // displaysArray[8].writeDigitRaw(3, 0x1);
-
-    // displaysArray[5].writeDigitRaw(0, 0x4000 | 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20 | 0x400 | 0x800);    // 0.
-    // displaysArray[5].writeDigitRaw(1, 0x4000 | 0x2 | 0x4 );                                             // 1.
-    // displaysArray[5].writeDigitRaw(2, 0x4000 | 0x1 | 0x2 | 0x8 | 0x10 | 0x40 | 0x80);                   // 2.
-    // displaysArray[5].writeDigitRaw(3, 0x4000 | 0x1 | 0x2 | 0x4 | 0x8 | 0x80);                           // 3.
-    // displaysArray[6].writeDigitRaw(0, 0x4000 | 0x2 | 0x4 | 0x20 | 0x40 | 0x80);                         // 4.
-    // displaysArray[6].writeDigitRaw(1, 0x4000 | 0x1 | 0x8 | 0x20 | 0x40 | 0x2000);                       // 5.
-    // displaysArray[6].writeDigitRaw(2, 0x4000 | 0x1 | 0x4 | 0x8 | 0x10| 0x20 | 0x40 | 0x80);             // 6.
-    // displaysArray[6].writeDigitRaw(3, 0x4000 | 0x1 | 0x2 | 0x4 );                                       // 7.
-    // displaysArray[7].writeDigitRaw(0, 0x4000 | 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20 | 0x40 | 0x80);      // 8.
-    // displaysArray[7].writeDigitRaw(1, 0x4000 | 0x1 | 0x2 | 0x4 | 0x20 | 0x40 | 0x80);                   // 9.
-
-
-    for (int i = 5; i < 10; i++) {
-        displaysArray[i].writeDisplay();
-    }
-
-    delay(2000);
-
-    for (int j = 5; j < 10; j++) {
-        for (int k = 0; k < 4; k++) {
-            displaysArray[j].writeDigitRaw(k, 0x0);
-            displaysArray[j].writeDisplay();
-            delay(15);
-        }
-    }
-}
-
-void clearDisplays() {
-    for (int i = 5; i < 10; i++) {
-        displaysArray[i].clear();
-        displaysArray[i].writeDisplay();
-    }
-}
-
-void writeDisplays() {
-    for (int i = 5; i < 10; i++) {
-        displaysArray[i].writeDisplay();
-    }
-}
-
-void initDisplayUnits() {
-
-    // Display 2
-    if (displayBattPower) {
-        alpha4.writeDigitAscii(0, 'K'); 
-        alpha4.writeDigitAscii(1, 'W'); 
-    }
-
-    // Display 3
-    if (displayGrade) { 
-        alpha3.writeDigitAscii(3, '%'); 
-    }
-
-    // Display 5
-    if (displayBattTemp) {
-        alpha3.writeDigitAscii(3, 'F');  
-    }
-
-    if (displayInstantaneousEfficiency) {
-        alpha1.writeDigitAscii(0, 'w');
-        alpha1.writeDigitAscii(1, 'h');
-        alpha1.writeDigitAscii(2, '/');
-        alpha1.writeDigitAscii(3, 'm');  
-    }
-
-
-    writeDisplays();
-}
-
-void printValueWithSingleUnit(int val, int display) {
-
-    String data = String(abs(val), 10); // Convert absolute value to string
-    int absLength = data.length();
-
-    switch(absLength) {
-        case 0  :
-            // if empty do nothing
-            break;
-        case 1  :
-            if (val < 0) {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitAscii(1, '-');
-            } else {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitRaw(1, 0x0);
-            }
-
-            displaysArray[display].writeDigitAscii(2, data[0]);    
-            break;
-
-        case 2  :
-            if (val < 0) {
-                displaysArray[display].writeDigitAscii(0, '-');
-            } else {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-            }
-
-            for (int i = 0; i < absLength; i++) {
-                displaysArray[display].writeDigitAscii(i + 1, data[i]);
-            }
-            break;
-        
-        case 3  :
-            for (int i = 0; i < absLength; i++) {
-                displaysArray[display].writeDigitAscii(i, data[i]);
-            }
-            break;
-    }  
-            displaysArray[display].writeDisplay();
-}
-
-void printValueWithSingleUnit(double val, int display) {
-
-    String data = String(abs(val), 10); // Convert absolute value to string
-    int absLength = data.length();
-    Serial.print("Double data: ");
-    Serial.println(data);
-    // Serial.print("Double Data Length: ");
-    // Serial.println(absLength);
-    // lop off the trailing zero
-    // Serial.print("Test1: ");
-    // Serial.println(data[absLength - 1]);
-
-    // find the decimal
-    char key = '.';
-
-    int decimalPointPosition = 0;
-    for (int i = 0; i < data.length(); i++) {
-        if (data[i] == key) {
-            decimalPointPosition = i;
-            break;
-        }
-    }
-    // Serial.print("Decimal point @: ");
-    // Serial.println(decimalPointPosition);
-
-    bool isDone = false;
-    while (!isDone) {
-        int length = data.length();
-        if (length > decimalPointPosition + 3) {
-            data.remove(data.length() - 1);
-        } else {
-            isDone = true;
-        }
-    }
-
-    Serial.print("Final Cleaned double data: ");
-    Serial.println(data);
-
-    char zero = '0';
-    if (data[data.length() - 1] == zero) {
-        data.remove(data.length() - 1);
-    }
-
-    if (data[data.length() - 1] == zero) {
-        data.remove(data.length() - 1);
-        data.remove(data.length() - 1); // remove the decimal
-    }
-
-
-    Serial.print("Final final Cleaned double data: ");
-    Serial.println(data);
-    
-    
-    String lastVal = data.substring(absLength, absLength);
-    if (lastVal.toInt() == 0) {
-        data.remove(absLength - 1);
-    }
-    Serial.print("Double data after: ");
-    Serial.println(data);
-
-
-    ///
-    for (int i = 0; i < data.length(); i++) {
-        if (data[i] == key) {
-            decimalPointPosition = i;
-            Serial.print("Going to remove:");
-            Serial.println(data[i]);
-            data.remove(i, 1);
-        }
-    }
-
-    Serial.print("Final num to be printed: ");
-    Serial.println(data);
-
-    if (decimalPointPosition == 1) {
-        displaysArray[7].writeDigitRaw(0, 0x80);
-    } else if (decimalPointPosition == 2) {
-        displaysArray[7].writeDigitRaw(1, 0x80);
-    }
-
-    absLength = data.length();
-
-    if (absLength == 4) {
-        data.remove(absLength - 1);
-    }
-
-    absLength = data.length();
-
-    switch(absLength) {
-        case 0  :
-            // if empty do nothing
-            break;
-        case 1  :
-            if (val < 0) {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitAscii(1, '-');
-            } else {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitRaw(1, 0x0);
-            }
-
-            displaysArray[display].writeDigitAscii(2, data[0]);    
-            break;
-
-        case 2  :
-            if (val < 0) {
-                displaysArray[display].writeDigitAscii(0, '-');
-            } else {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-            }
-
-            for (int i = 0; i < absLength; i++) {
-                displaysArray[display].writeDigitAscii(i + 1, data[i]);
-            }
-            break;
-        
-        case 3  :
-            for (int i = 0; i < absLength; i++) {
-                //displaysArray[display].writeDigitRaw(1, 0x4000 | 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20 | 0x40 | 0x80);      // 8.
-                // Serial.print("Quad num i:");
-                // Serial.println(i);
-                // Serial.print("Data on this quad num:");
-                // Serial.println(data[i]);    
-                if (i == 1) {
-                    if (data[i] == '0') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20 | 0x400 | 0x800);    // 0.
-                    } else if (data[i] == '1') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x2 | 0x4 );                                             // 1.
-                    } else if (data[i] == '2') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x1 | 0x2 | 0x8 | 0x10 | 0x40 | 0x80);                   // 2.
-                    } else if (data[i] == '3') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x1 | 0x2 | 0x4 | 0x8 | 0x80);                           // 3.
-                    } else if (data[i] == '4') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x2 | 0x4 | 0x20 | 0x40 | 0x80);                         // 4.
-                    } else if (data[i] == '5') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x1 | 0x8 | 0x20 | 0x40 | 0x2000);                       // 5.
-                    } else if (data[i] == '6') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x1 | 0x4 | 0x8 | 0x10| 0x20 | 0x40 | 0x80);             // 6.
-                    } else if (data[i] == '7') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x1 | 0x2 | 0x4 );                                       // 7.
-                    } else if (data[i] == '8') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20 | 0x40 | 0x80);      // 8.
-                    } else if (data[i] == '9') {
-                        displaysArray[display].writeDigitRaw(1, 0x4000 | 0x1 | 0x2 | 0x4 | 0x20 | 0x40 | 0x80);                   // 9.
-                    }
-                } else {
-                    displaysArray[display].writeDigitAscii(i, data[i]);
-                }
-            }
-            break;
-        // case 4  :
-        //     for (int i = 0; i < absLength; i++) {
-        //         displaysArray[display].writeDigitAscii(i, data[i]);
-        //     }
-        //     break;
-    }
-    displaysArray[display].writeDisplay();
-}
-
-void printValueWithDoubleUnit(int val, int display) {
-
-    String data = String(abs(val), 10); // Convert absolute value to string
-    int absLength = data.length();
-
-    switch(absLength) {
-        case 0  :
-            // if empty do nothing
-            break;
-        case 1  :
-            if (val < 0) {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitAscii(1, '-');
-            } else {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitRaw(1, 0x0);
-            }
-
-            displaysArray[display].writeDigitAscii(2, data[0]);    
-            break;
-
-        case 2  :
-            if (val < 0) {
-                displaysArray[display].writeDigitAscii(0, '-');
-            } else {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-            }
-
-            for (int i = 0; i < absLength; i++) {
-                displaysArray[display].writeDigitAscii(i + 1, data[i]);
-            }
-            break;
-        
-        case 3  :
-            for (int i = 0; i < absLength; i++) {
-                displaysArray[display].writeDigitAscii(i, data[i]);
-            }
-            break;
-    }  
-    displaysArray[display].writeDisplay();
-}
-
-void printValueWithNoUnits(int val, int display) {
-    
-    String data = String(abs(val), 10); // Convert absolute value to string
-    int absLength = data.length();
-
-    switch(absLength) {
-        case 0  :
-            // if empty do nothing
-            break;
-        case 1  :
-            if (val < 0) {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitRaw(1, 0x0);
-                displaysArray[display].writeDigitAscii(2, '-');
-                displaysArray[display].writeDigitAscii(3, data[0]); // write the payload  
-            } else {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitRaw(1, 0x0);
-                displaysArray[display].writeDigitRaw(2, 0x0);
-                displaysArray[display].writeDigitAscii(3, data[0]); // write the payload  
-            }
-            break;
-
-        case 2  :
-            if (val < 0) {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitAscii(1, '-');
-            } else {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-                displaysArray[display].writeDigitRaw(1, 0x0);
-            }
-
-            for (int i = 0; i < 2; i++) {
-                displaysArray[display].writeDigitAscii(i + 2, data[i]);
-            }
-
-            break;
-        
-        case 3  :
-            if (val < 0) {
-                displaysArray[display].writeDigitAscii(0, '-');
-            } else {
-                displaysArray[display].writeDigitRaw(0, 0x0);
-            }
-
-            for (int i = 0; i < 3; i++) {
-                displaysArray[display].writeDigitAscii(i + 1, data[i]);
-            }
-
-            break;
-    }  
-    displaysArray[display].writeDisplay();
-}
 
 void writeLCD(payload_struct payload) { // decode message received and display to quadalphanumeric displays
 
     switch (payload.can_id) {
         case 0x267 : // gradeEST
+            //alphanumPrint(payload.int_value_1);
             if (displayGrade) {
-                printValueWithSingleUnit(payload.int_value_1, 7);
+                //printValueWithSingleUnit(payload.int_value_1, 7);
             }
             break;
 
-        case 0x312 : // min batt temp
-            if (displayBattTemp) {
-                //printValueWithSingleUnit(payload.int_value_1, 7);
-                printValueWithSingleUnit(payload.double_value_1, 7); 
+        case 0x312 : // batt temp
+            //alphanumPrint();
+            if (displayBattTempAlphaNum) {
+                printValueWithSingleUnit(payload.double_value_1, 7);
+            }
+
+            if (displayBattTempLCD) {
+                sendToLCD(0, payload.double_value_1, "Batt" , "F");
             }
             break;
 
         case 0x336 : // max regen, min discharge
+            //lcdPrint(payload.int_value_1);
             if (displayLimits) {
-                printValueWithSingleUnit(payload.int_value_1, 9);
+                // //printValueWithSingleUnit(payload.int_value_1, 9);
+
+                // if (payload.int_value_1 != tempMaxDischarge || payload.int_value_2 != tempMaxRegen) {
+                //     sendToLCD(0);
+                //     sendToLCD(0, payload.int_value_1, "Batt" , "F", 0, payload.double_value_1, "Batt" , "F");
+                //     lcd.setCursor(0, 0);
+                //     lcd.print(String("Lims " + String(payload.int_value_1) + "KW" + "/" + String(payload.int_value_2) + "KW"));
+                // }
             } 
             break;
 
         case 0x132 : // HVBattAmpVolt
+            //alphanumPrint(payload.int_value_1);
             // write power to display
             if (displayBattPower) {
-                printValueWithNoUnits(payload.int_value_3, 5);
+                //printValueWithNoUnits(payload.int_value_3, 5);
             }
             break;
 
         case 0x000 : // instantaneousEfficiency
+            //alphanumPrint(payload.int_value_1);
             // write instantaneousEfficiency
             if (displayInstantaneousEfficiency) {
-                printValueWithNoUnits(payload.int_value_1, 8);
+                //printValueWithNoUnits(payload.int_value_1, 8);
             }
             break;
 
         case 0x3D9 : // gps veh speed
+            //alphanumPrint(payload.int_value_1);
             // write instantaneousEfficiency
             if (displayVehicleSpeed) {
-                printValueWithNoUnits(payload.int_value_1, 8);
+                // printValueWithNoUnits(payload.int_value_1, 8);
+            }
+            break;
+
+        case 0x001 : // 0-60 time
+            {
+                // write 0-60
+                if (displayZeroToSixty) {
+                    //printValueWithSingleUnit(payload.double_value_1, 7);
+                }
+
+                // lcd.setCursor(0, 1);
+                // String message = "";
+                // if (payload.double_value_1 == -1.0) {
+                //     message = "Active     ";
+                //     lcd.print("0-60:" + message);
+                // } else if (payload.double_value_1 == -2.0) {
+                //     message = "Armed      ";
+                //     lcd.print("0-60:" + message);
+                // } else if (payload.double_value_1 == -3.0) {
+                //     message = "Run Ignored";
+                //     lcd.print("0-60:" + message);
+                // } else {
+                //     lcd.print("0-60:" + String(payload.double_value_1) + String("secs"));
+                // }
+                break;
+            }
+
+        case 0x002 : // UI_Speed
+            if (displaySpeed) {
+                sendToLCD(1, payload.double_value_1, "Speed", "mph");
+            }
+            break;
+
+
+        case 0x2E5 : // frontPower
+            if (displayFrontPowerBarGraph) {
+                sendToBarGraphPower("front", payload.int_value_1, payload.int_value_2, payload.int_value_3);
+            }
+
+            if (displayFrontPowerLCD) {
+                sendToLCD(0, payload.int_value_1, "FP", "kW");
+            }
+            break;
+
+        case 0x252 : // BMS
+
+            break;
+
+        case 0x266 : // rearPower
+            if (displayRearPowerBarGraph) {
+                sendToBarGraphPower("rear", payload.int_value_1, payload.int_value_2, payload.int_value_3);
+            }
+
+            if (displayRearPowerLCD) {
+                sendToLCD(1, payload.int_value_1, "RP", "kW");
+            }
+
+            break;
+
+        case 0x292 : // bms
+            if (displaySOCAveLCD) {
+                sendToLCD(1, payload.double_value_1, "Avg SOC ", "%");
             }
             break;
     }
@@ -511,11 +211,15 @@ void writeLCD(payload_struct payload) { // decode message received and display t
 // callback function that tells us when data from Master is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
-    if (isFirstRecv) {
-        initDisplayUnits();
+    checkButton();
 
-        isFirstRecv = false;
-    }
+    // refreshCount = refreshCount + 1;
+
+    // if (isFirstRecv) {
+    //     initDisplayUnits();
+
+    //     isFirstRecv = false;
+    // }
 
     isIdle = false; // on our first received message, flip idle status
 
@@ -553,40 +257,52 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
         Serial.print("\n");
     }
 
+    // if (refreshCount > 50) {
+    //     alpha1.setBrightness(15);
+    //     alpha1.writeDisplay();
+    //     alpha2.setBrightness(15);
+    //     alpha2.writeDisplay();
+    //     alpha3.setBrightness(15);
+    //     alpha3.writeDisplay();
+    //     alpha4.setBrightness(15);
+    //     alpha4.writeDisplay();
+    //     alpha5.setBrightness(15);
+    //     alpha5.writeDisplay();
 
-    // alpha1.setBrightness(15);
-    // alpha1.writeDisplay();
-    // alpha2.setBrightness(15);
-    // alpha2.writeDisplay();
-    // alpha3.setBrightness(15);
-    // alpha3.writeDisplay();
-    // alpha4.setBrightness(15);
-    // alpha4.writeDisplay();
-    // alpha5.setBrightness(15);
-    // alpha5.writeDisplay();
+    //     refreshCount = 0;
+    // }
 
     writeLCD(myData); // decode message received and display to quadalphanumeric displays
 }
 
 void setup() {
 
+    // ledcSetup(ledChannel, freq, resolution);
+    // ledcSetup(ledChanne2, freq, resolution);
+    // ledcSetup(ledChanne3, freq, resolution);
+
+    // // attach the channel to the GPIO to be controlled
+    // ledcAttachPin(red_light_pin, ledChannel);
+    // ledcAttachPin(green_light_pin, ledChanne2);
+    // ledcAttachPin(blue_light_pin, ledChanne3);
+
+    //setupDisplays();
+
+    setupBarGraphs();
+    setupLCD();
+    displayLoadingAnimationBarGraph();
+    displayLoadingAnimationLCD();
+
+    setupAlphaNum();
+    displayLoadingAnimationAlphaNum();
+    
     Serial.begin(115200);
     delay(250);
  
-    // put esp32 in WIFI station mode 
+    // put esp32 in WIFI station mode
     WiFi.mode(WIFI_STA);
-    Serial.print("Mac Address in Station: "); 
+    Serial.print("Mac Address in Station: ");
     Serial.println(WiFi.macAddress());
-
-    // begin each display
-    alpha1.begin(0x70);  // pass in the address
-    alpha2.begin(0x71);  // pass in the address
-    alpha3.begin(0x72);  // pass in the address
-    alpha4.begin(0x73);  // pass in the address
-    alpha5.begin(0x74);  // pass in the address
-
-    // display loading animation
-    displayLoadingText();
     
     // init esp now (connection to slave wia wifi)
     if (esp_now_init() != ESP_OK) {
@@ -600,4 +316,12 @@ void setup() {
 
 // nothing to do in loop - program is asynchronous
 void loop() {
+
+    // for(int dutyCycle = 0; dutyCycle <= 255; dutyCycle++){   
+    //     // changing the LED brightness with PWM
+    //     ledcWrite(ledChannel, dutyCycle);
+    //     ledcWrite(ledChanne2, dutyCycle);
+    //     ledcWrite(ledChanne3, dutyCycle);
+    //     delay(15);
+    // }   
 }

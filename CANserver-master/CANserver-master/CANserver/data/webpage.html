@@ -1,0 +1,93 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+    <body>
+        <table>
+            <tr>
+                <th class="label">Output</th>
+                <td class="data" id="battPower">KW</td>
+                <td class="data" id="battAmps">A</td>
+                <td class="data" id="battVolts">V</td>
+            </tr>
+            <tr>
+                <th class="label">Front Power</th>
+                <td class="data" id="frontPower">0</td>
+                <th class="label">Rear Power </th>
+                <td class="data" id="rearPower">0</td></tr>
+            </tr>
+            <tr>
+                <th class="label">Max regen</td>
+                <td class="data" id="maxRegen">0</td>
+                <th class="label">Max Discharge</td> 
+                <td class="data" id="maxDischarge">0</td>
+            </tr>
+            <tr>
+                <th class="label">Min Temp</td>
+                <td class="data" id="minBattTemp">0</td>
+                <th class="label">Max Temp</td>
+                <td class="data" id="maxBattTemp">0</td>  
+            </tr>
+            <th colspan="4">Charging</th>
+            <tr>
+                <th class="label">Charging info</td>
+                <td class="data" id="chargeLinePower">KW</td>
+                <td class="data" id="chargeLineCurrent">A</td>
+                <td class="data" id="chargeLineVoltage">V</td>   
+            </tr>
+            <tr>
+                <th class="label">Grade Estimate</th>
+                <td class="data" id="gradeEST">0</td>
+                <th class="label">Internal</td>
+                <td class="data" id="gradeESTinternal">0</td>
+            </tr>
+            <tr>
+                <th class="label">remaining kwh</td>
+                <td class="data" id="nominalEnergyRemaining">0</td>
+                <th class="label">full kwh</td>
+                <td class="data" id="nominalFullPackEnergy">0</td>    
+            </tr>
+            <tr>
+                <th class="label" colspan="2">Beginning Of Life Energy</td>  
+                <td class="data" id="battBeginningOfLifeEnergy"colspan="2"></td>    
+            </tr>
+            <tr>
+            <th class="label">0-60 Time</td>
+            <td class="data" id="totalZeroToSixtyTime">0.00s</td>
+            </tr>
+        </table>
+    <script>
+        setInterval(function ( ) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    var data = JSON.parse(this.responseText);
+
+                    document.getElementById("battAmps").innerHTML = data.battAmps;
+                    document.getElementById("battBeginningOfLifeEnergy").innerHTML = data.battBeginningOfLifeEnergy;
+                    document.getElementById("battPower").innerHTML = data.battPower;
+                    document.getElementById("maxRegen").innerHTML = data.maxRegen;
+                    document.getElementById("maxDischarge").innerHTML = data.maxDischarge;
+                    document.getElementById("frontPower").innerHTML = data.frontPower;
+                    document.getElementById("rearPower").innerHTML = data.rearPower;
+                    document.getElementById("battVolts").innerHTML = data.battVolts;
+                    document.getElementById("nominalFullPackEnergy").innerHTML = data.nominalFullPackEnergy;
+                    document.getElementById("nominalEnergyRemaining").innerHTML = data.nominalEnergyRemaining;
+                    document.getElementById("chargeLineCurrent").innerHTML = data.chargeLineCurrent;
+                    document.getElementById("chargeLinePower").innerHTML = data.chargeLinePower;
+                    document.getElementById("chargeLineVoltage").innerHTML = data.chargeLineVoltage;
+                    document.getElementById("gradeEST").innerHTML = data.gradeEST;
+                    document.getElementById("gradeESTinternal").innerHTML = data.gradeESTinternal;
+                    document.getElementById("minBattTemp").innerHTML = data.minBattTemp;
+                    document.getElementById("maxBattTemp").innerHTML = data.maxBattTemp;
+                    document.getElementById("rearTorque").innerHTML = data.rearTorque;
+                    document.getElementById("totalZeroToSixtyTime").innerHTML = data.totalZeroToSixtyTime;
+                }
+            };
+            xhttp.open("GET", "/refresh", true);
+            xhttp.send();
+        }, 250 );
+    </script>
+</html>

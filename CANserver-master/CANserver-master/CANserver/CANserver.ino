@@ -13,7 +13,6 @@
  *      (must press IO0 right button to start programming)
  *
  *      Modified by Ross Klonowski
- *
 */
 
 //#include <ArduinoJson.h>
@@ -26,6 +25,7 @@
 #include <esp_now.h> // for ESP32 to ESP32 wifi communication
 #include "SPIFFS.h" // for web server files (html,styling)
 #include <math.h>
+//#include "simulation.cpp"
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
@@ -34,18 +34,32 @@
 #define littleEndian true
 #define bigEndian false
 
+bool activeZeroToSixtyTime = false;
+int totalZeroToSixtyTime = 0;
+int currentTime_speed = 0;
+
 static bool debug = false;
 static bool serial_switch = false;
+static int debug_counter = 0;
+
+static int frontPower = 0;
+static int rearPower = 0;    
 
 static int battVolts_temp = 0;
-static int battVolts = 300;        //ID 132 byte 0+1 scale .01 V
+static int battVolts = 0;        //ID 132 byte 0+1 scale .01 V
 
 static int battAmps_temp = 0;
 static int battAmps = 0;         //ID 132 byte 2+3 scale -.1 offset 0 A
 
-static double minBattTemp = 0;      //ID 312 SB 44 u9 scale .25 offset -25 C
-static double maxBattTemp = 0;
-static double avgBattTemp = 0;
+static int frontPowerLimit = 150;
+static int rearPowerLimit = 150;
+
+static double minBattTemp = 0.0;      //ID 312 SB 44 u9 scale .25 offset -25 C
+static double maxBattTemp = 0.0;
+static double avgBattTemp = 0.0;
+static double avgBattTemp_temp = 0.0;
+
+static double testZeroToSixty = 0.0;
 
 static int battPower_temp = 0;   // V*A
 static int battPower = 0;        // V*A
@@ -89,16 +103,21 @@ static int chargeLinePower = 0;
 
 static int displayOn = 0;       //to turn off displays if center screen is off
 
-static int maxRegen = 0;         //ID 252 Bytes 0+1 scale .01 kW
+static int maxRegen = 100;         //ID 252 Bytes 0+1 scale .01 kW
+static int maxRegen_temp = 100;         //ID 252 Bytes 0+1 scale .01 kW
 static int maxDischarge = 0;        //ID 252 Bytes 2+3 scale .01 kW
 static int battBeginningOfLifeEnergy = 0;
+
+static double socAVE = 0;
+static double socAVE_temp = 0;
 
 static int GPSSpeedKPH = 0;
 static int GPSSpeedMPH = 0;
 
 // custom signals
 static int instantaneousEfficiency = 0;
-static double UIspeed = 0;
+static double UIspeed = 0.0;
+static double temp_UIspeed = 0.0;
 
 unsigned long previouscycle = 0;
 static int interval = 100;
@@ -110,7 +129,8 @@ const char* password = "ellenpassword";
 generalCANSignalAnalysis analyzeMessage; //initialize library
 
 // slave's MAC address
-uint8_t receiverMacAddress[] = {0xAC, 0x67, 0xB2, 0x2C, 0x3C, 0xD0};
+uint8_t receiverMacAddress1[] = { 0xAC, 0x67, 0xB2, 0x2C, 0x3C, 0xD0 }; // Segmented Displays
+uint8_t receiverMacAddress2[] = { 0xAC, 0x67, 0xB2, 0x2C, 0x21, 0x30 }; // LCD
 
 // create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -151,7 +171,9 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, String unit1) {
     payload.unit2 = "";
     payload.unit3 = "";
     
-    esp_err_t result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
+    esp_err_t result = 0;
+    result = esp_now_send(receiverMacAddress1, (uint8_t *) &payload, sizeof(payload));
+    result = esp_now_send(receiverMacAddress2, (uint8_t *) &payload, sizeof(payload));
     
     if (debug) {
         if (result == ESP_OK) {
@@ -189,7 +211,9 @@ int sendToDisplay(uint32_t can_id, double valueToSend1, String unit1) {
     payload.unit2 = "";
     payload.unit3 = "";
     
-    esp_err_t result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
+    esp_err_t result = 0;
+    result = esp_now_send(receiverMacAddress1, (uint8_t *) &payload, sizeof(payload));
+    result = esp_now_send(receiverMacAddress2, (uint8_t *) &payload, sizeof(payload));
     
     if (debug) { 
         if (result == ESP_OK) {
@@ -224,7 +248,9 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, int valueToSend2, String un
     payload.unit1 = unit1;
     payload.unit2 = unit2;
     
-    esp_err_t result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
+    esp_err_t result = 0;
+    result = esp_now_send(receiverMacAddress1, (uint8_t *) &payload, sizeof(payload));
+    result = esp_now_send(receiverMacAddress2, (uint8_t *) &payload, sizeof(payload));
   
     if (debug) {
         if (result == ESP_OK) {
@@ -267,7 +293,9 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, int valueToSend2, int value
     payload.unit2 = unit2;
     payload.unit3 = unit3;
     
-    esp_err_t result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
+    esp_err_t result = 0;
+    result = esp_now_send(receiverMacAddress1, (uint8_t *) &payload, sizeof(payload));
+    result = esp_now_send(receiverMacAddress2, (uint8_t *) &payload, sizeof(payload));
   
     if (debug) {
         if (result == ESP_OK) {
@@ -305,8 +333,27 @@ void setup(){
     Serial.begin(115200);
     delay(100);
 
+    // Serial.print("ESP Board MAC Address:  ");
+    // Serial.println(WiFi.macAddress());
+
     CAN0.begin(BITRATE);
     CAN0.watchFor(); // then let everything else through anyway
+
+    // File root = SPIFFS.open("/");
+    // File file = root.openNextFile();
+
+    // while(file){
+    //     Serial.print("FILE: ");
+    //     Serial.println(file.name());
+    //     file = root.openNextFile();
+    // }
+
+    // bool formatted = SPIFFS.format();
+    // if (formatted) {
+    //     Serial.println("\n\nSuccess formatting");
+    // } else {
+    //     Serial.println("\n\nError formatting");
+    // }
 
     // init SPIFFS
     if(!SPIFFS.begin(true)){
@@ -335,10 +382,17 @@ void setup(){
 
     // register peer
     esp_now_peer_info_t peerInfo;
-    memcpy(peerInfo.peer_addr, receiverMacAddress, 6);
     peerInfo.channel = 0;  
     peerInfo.encrypt = false;
-    
+
+    memcpy(peerInfo.peer_addr, receiverMacAddress1, 6);
+    // add peer        
+    if (esp_now_add_peer(&peerInfo) != ESP_OK){
+        Serial.println("Failed to add peer");
+        return;
+    }
+
+    memcpy(peerInfo.peer_addr, receiverMacAddress2, 6);
     // add peer        
     if (esp_now_add_peer(&peerInfo) != ESP_OK){
         Serial.println("Failed to add peer");
@@ -349,7 +403,7 @@ void setup(){
 
     // route for root / web page
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        request->send(SPIFFS, "/index.html", String(), false);
+        request->send(SPIFFS, "/webpage.html", String(), false);
     });
     
     // route to load style.css file
@@ -391,7 +445,7 @@ void loop() {
     // update json object that will be sent to display over wifi
     doc["battAmps"] = battAmps;
     doc["battBeginningOfLifeEnergy"] = battBeginningOfLifeEnergy;
-    doc["battPower"] = battPowerW;
+    doc["battPower"] = battPower;
     doc["battRemainKWh"] = battRemainKWh;
     doc["battVolts"] = battVolts;
     doc["chargeLineCurrent"] = chargeLineCurrent;
@@ -408,6 +462,9 @@ void loop() {
     doc["maxRegen"] = maxRegen;
     doc["maxDischarge"] = maxDischarge;
     doc["nominalFullPackEnergy"] = nominalFullPackEnergy;
+    doc["frontPower"] = frontPower;
+    doc["rearPower"] = rearPower;
+    doc["totalZeroToSixtyTime"] = totalZeroToSixtyTime;
 
     unsigned long currentMillis = millis();
 
@@ -433,7 +490,6 @@ void loop() {
             //     avgBattTemp = 12;
             // }
 
-
             // rearTorque = rearTorque + 1;
             // if (rearTorque == 150) {
             //     rearTorque = -150;
@@ -450,13 +506,8 @@ void loop() {
             // }
 
             // battPower = battPower + 1;
-            // if (battPower == 250) {
+            // if (battPower == 300) {
             //     battPower = -50;
-            // }
-
-            // displayOn = displayOn + 1;
-            // if (displayOn == 2) {
-            //     displayOn = 0;
             // }
             
             // battBeginningOfLifeEnergy = battBeginningOfLifeEnergy + 1;
@@ -508,10 +559,29 @@ void loop() {
             // if (gradeEST == 40) {
             //     gradeEST = -40;
             // }
+        
+            // gradeESTinternal = gradeESTinternal + 1;
+            // if (gradeESTinternal == 40) {
+            //     gradeESTinternal = -40;
+            // }
 
-            // UIspeed = UIspeed + 0.1;
-            // if (UIspeed > 70) {
+            // if (UIspeed == 0.0 && debug_counter < 90) {
             //     UIspeed = 0.0;
+            //     debug_counter = debug_counter + 1;
+            // }
+
+            // if (debug_counter >= 30) {
+            //     debug_counter = 0;
+            // }
+
+            // UIspeed = UIspeed + 1;
+            // if (UIspeed > 99) {
+            //     UIspeed = 0.0;
+            // }
+
+            // testZeroToSixty = testZeroToSixty + 0.1;
+            // if (testZeroToSixty > 15) {
+            //     testZeroToSixty = 0.0;
             // }
 
             // GPSSpeedMPH = GPSSpeedMPH + 1;
@@ -523,8 +593,21 @@ void loop() {
             // if (instantaneousEfficiency > 200) {
             //     instantaneousEfficiency = -100;
             // }
-            
-            avgBattTemp = (maxBattTemp + minBattTemp) / 2.0;
+
+            // frontPower = frontPower + 1;
+            // if (frontPower >= 150) {
+            //     frontPower = -50;
+            // } 
+
+            // rearPower = rearPower + 1;
+            // if (rearPower >= 150) {
+            //     rearPower = -50;
+            // }
+
+            // socAVE = socAVE + 0.01;
+            // if (socAVE >= 100.0) {
+            //     socAVE = 0.0;
+            // }
 
             battPowerW = battPower * 1000;
 
@@ -537,11 +620,84 @@ void loop() {
                 }
             }
 
-            sendToDisplay(0x132, battVolts, battAmps, battPower, "V", "A", "KW");
-            sendToDisplay(0x312, avgBattTemp, "F");
-            sendToDisplay(0x000, instantaneousEfficiency, "wh/m");
+            //sendToDisplay(0x132, battVolts, battAmps, battPower, "V", "A", "KW");
+        
+            
+            
+            // sendToDisplay(0x000, instantaneousEfficiency, "wh/m");
+            sendToDisplay(0x266, rearPower, rearPowerLimit, maxRegen, "KW", "KW", "KW");
+            sendToDisplay(0x2E5, frontPower, frontPowerLimit, "KW", "KW");
+
+            if (socAVE != socAVE_temp) {
+                sendToDisplay(0x292, socAVE, "%");
+                socAVE_temp = socAVE;
+            }
+
+            if (avgBattTemp != avgBattTemp_temp) {
+                sendToDisplay(0x312, avgBattTemp, "F");
+                avgBattTemp_temp = avgBattTemp;
+            }
+
+            //sendToDisplay(0x336, maxDischarge, maxRegen, "KW", "KW");
+            //sendToDisplay(0x001, testZeroToSixty, "s");
+            //sendToDisplay(0x002, UIspeed, "mph");
         }
     }
+
+    // Serial.print("Temp UI Speed: ");
+    // Serial.println(temp_UIspeed);
+
+    // Serial.print("UI Speed: ");
+    // Serial.println(UIspeed);
+
+    // Serial.print("activeZeroToSixty: ");
+    // Serial.println(activeZeroToSixtyTime);
+
+    // if (UIspeed == 0.0) {
+    //     sendToDisplay(0x001, -2.0, "s");
+    //     sendToDisplay(0x001, -2.0, "s");
+    //     sendToDisplay(0x001, -2.0, "s");
+    //     sendToDisplay(0x001, -2.0, "s");
+    // }
+
+    // if (temp_UIspeed == 0.0 && UIspeed != temp_UIspeed) {
+    //     activeZeroToSixtyTime = true;
+    //     currentTime_speed = millis(); // start the timer
+    //     // Serial.println("Starting Timer! 0-60");
+    //     sendToDisplay(0x001, -1.0, "s");
+    //     sendToDisplay(0x001, -1.0, "s");
+    //     sendToDisplay(0x001, -1.0, "s");
+    //     sendToDisplay(0x001, -1.0, "s");
+    //     sendToDisplay(0x001, -1.0, "s");
+    //     sendToDisplay(0x001, -1.0, "s");
+    //     sendToDisplay(0x001, -1.0, "s");
+    //     sendToDisplay(0x001, -1.0, "s");
+    // }
+    // temp_UIspeed = UIspeed;
+
+    // if (UIspeed >= 30.0 && activeZeroToSixtyTime) {
+    //     activeZeroToSixtyTime = false;
+    //     totalZeroToSixtyTime = millis() - currentTime_speed;
+    //     Serial.println("Ending Timer! 0-60");
+    //     Serial.print("Time: ");
+    //     Serial.println(totalZeroToSixtyTime / 1000.00);
+    //     //Serial.println(totalZeroToSixtyTime);
+    //     double totalZeroToSixtyTime1 = totalZeroToSixtyTime / 1000.00;
+    //     if (totalZeroToSixtyTime1 < 10.0) {
+    //         sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+    //         sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+    //         sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+    //         sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+    //         sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+    //         sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+    //         sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+    //     } else {
+    //         sendToDisplay(0x001, -3.0, "s");
+    //         sendToDisplay(0x001, -3.0, "s");
+    //         sendToDisplay(0x001, -3.0, "s");
+    //         sendToDisplay(0x001, -3.0, "s");
+    //     }
+    // }
     
     // can message processing follows
     CAN_FRAME message;
@@ -616,6 +772,8 @@ void loop() {
             case 0x292: // BMS_SOC 
                 if (message.length == 8) {
                     battBeginningOfLifeEnergy = analyzeMessage.getSignal(message.data.uint64, 40, 10, 0.1, 0, false, littleEndian);
+                    socAVE = analyzeMessage.getSignal(message.data.uint64, 30, 10, 0.1, 0, false, littleEndian);
+
                 }
                 break;
 
@@ -646,17 +804,60 @@ void loop() {
                 }
                 break;
                     
-            case 0x257: // UIspeed
+            case 0x257: // Vehicle Speed
                 if (message.length == 8) {
-                    UIspeed = analyzeMessage.getSignal(message.data.uint64, 12, 12, 0.08, -40, false, littleEndian); // this is in kph
-                    UIspeed = UIspeed * 0.621371; // for mph
+                    // UIspeed = analyzeMessage.getSignal(message.data.uint64, 12, 12, 0.08, -40, false, littleEndian); // this is in kph
+                    // UIspeed = UIspeed * 0.621371; // for mph
+
+                    UIspeed = analyzeMessage.getSignal(message.data.uint64, 24, 9, 1, 0, false, littleEndian); // this is in mph
+                
+                    if (UIspeed == 0.0) {
+                        sendToDisplay(0x001, -2.0, "s");
+                        sendToDisplay(0x001, -2.0, "s");
+                        sendToDisplay(0x001, -2.0, "s");
+                        sendToDisplay(0x001, -2.0, "s");
+                    }
+
+                    if (temp_UIspeed == 0.0 && temp_UIspeed != UIspeed) {
+                        activeZeroToSixtyTime = true;
+                        currentTime_speed = millis(); // start the timer
+                        sendToDisplay(0x001, -1.0, "s");
+                        sendToDisplay(0x001, -1.0, "s");
+                        sendToDisplay(0x001, -1.0, "s");
+                        sendToDisplay(0x001, -1.0, "s");
+                    }
+                    temp_UIspeed = UIspeed;
+
+                    if (UIspeed >= 60.0 && activeZeroToSixtyTime) {
+                        activeZeroToSixtyTime = false;
+                        totalZeroToSixtyTime = millis() - currentTime_speed;
+                        double totalZeroToSixtyTime1 = totalZeroToSixtyTime / 1000.00;
+                        if (totalZeroToSixtyTime1 < 10.0) {
+                            sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+                            sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+                            sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+                            sendToDisplay(0x001, totalZeroToSixtyTime1, "s");
+                        } else {
+                            sendToDisplay(0x001, -3.0, "s");
+                            sendToDisplay(0x001, -3.0, "s");
+                            sendToDisplay(0x001, -3.0, "s");
+                            sendToDisplay(0x001, -3.0, "s");
+                        }
+                    }
                 }
                 break;
 
-            case 0x3D9: // gps speed (chassis bus)
+            case 0x2E5: // frontinverterpower
                 if (message.length == 8) {
-                    GPSSpeedKPH = analyzeMessage.getSignal(message.data.uint64, 24, 16, 0.00390625, 0, false, littleEndian); // this is in kph
-                    GPSSpeedMPH = GPSSpeedKPH * 0.621371; // convert to mph
+                    frontPower = analyzeMessage.getSignal(message.data.uint64, 0, 11, 0.5, 0, true, littleEndian);
+                    frontPowerLimit = analyzeMessage.getSignal(message.data.uint64, 48, 9, 1, 0, false, littleEndian);
+                }
+                break;
+
+            case 0x266: // rearinverterpower
+                if (message.length == 8) {
+                    rearPower = analyzeMessage.getSignal(message.data.uint64, 0, 11, 0.5, 0, true, littleEndian);
+                    rearPowerLimit = analyzeMessage.getSignal(message.data.uint64, 48, 9, 1, 0, false, littleEndian);
                 }
                 break;
     
