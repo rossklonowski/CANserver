@@ -92,27 +92,24 @@ static int expectedEnergyRemaining = 0;
 static int bmsMinPackTemperature_temp = 0;
 static int bmsMinPackTemperature = 0;
 
-static int chargeLineVoltage_temp = 0;
-static int chargeLineVoltage = 0;
+static double chargeLineVoltage_temp = 0;
+static double chargeLineVoltage = 0;
 
-static int chargeLineCurrent_temp = 0;
-static int chargeLineCurrent = 0;
+static double chargeLineCurrent_temp = 0;
+static double chargeLineCurrent = 0;
 
-static int chargeLinePower_temp = 0;
-static int chargeLinePower = 0;
+static double chargeLinePower_temp = 0;
+static double chargeLinePower = 0;
 
 static int displayOn = 0;       //to turn off displays if center screen is off
 
-static int maxRegen = 100;         //ID 252 Bytes 0+1 scale .01 kW
-static int maxRegen_temp = 100;         //ID 252 Bytes 0+1 scale .01 kW
+static int maxRegen = 0;         //ID 252 Bytes 0+1 scale .01 kW
+static int maxRegen_temp = 0;         //ID 252 Bytes 0+1 scale .01 kW
 static int maxDischarge = 0;        //ID 252 Bytes 2+3 scale .01 kW
 static int battBeginningOfLifeEnergy = 0;
 
 static double socAVE = 0;
 static double socAVE_temp = 0;
-
-static int GPSSpeedKPH = 0;
-static int GPSSpeedMPH = 0;
 
 // custom signals
 static int instantaneousEfficiency = 0;
@@ -146,6 +143,8 @@ typedef struct struct_message {
     int int_value_2;
     int int_value_3;
     double double_value_1;
+    // double double_value_2; // this causes errors
+    // double double_value_3;
     String unit1;
     String unit2;
     String unit3;
@@ -170,6 +169,8 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, String unit1) {
     payload.unit1 = unit1;
     payload.unit2 = "";
     payload.unit3 = "";
+
+    Serial.println("Size of the payload: " + String(sizeof(payload)));
     
     esp_err_t result = 0;
     result = esp_now_send(receiverMacAddress1, (uint8_t *) &payload, sizeof(payload));
@@ -210,6 +211,8 @@ int sendToDisplay(uint32_t can_id, double valueToSend1, String unit1) {
     payload.unit1 = unit1;
     payload.unit2 = "";
     payload.unit3 = "";
+
+    Serial.println("Size of the payload: " + String(sizeof(payload)));
     
     esp_err_t result = 0;
     result = esp_now_send(receiverMacAddress1, (uint8_t *) &payload, sizeof(payload));
@@ -247,6 +250,8 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, int valueToSend2, String un
     payload.int_value_2 = valueToSend2;
     payload.unit1 = unit1;
     payload.unit2 = unit2;
+
+    Serial.println("Size of the payload: " + String(sizeof(payload)));
     
     esp_err_t result = 0;
     result = esp_now_send(receiverMacAddress1, (uint8_t *) &payload, sizeof(payload));
@@ -292,6 +297,8 @@ int sendToDisplay(uint32_t can_id, int valueToSend1, int valueToSend2, int value
     payload.unit1 = unit1;
     payload.unit2 = unit2;
     payload.unit3 = unit3;
+
+    Serial.println("Size of the payload: " + String(sizeof(payload)));
     
     esp_err_t result = 0;
     result = esp_now_send(receiverMacAddress1, (uint8_t *) &payload, sizeof(payload));
@@ -485,10 +492,10 @@ void loop() {
             //     maxBattTemp = 16;
             // }
 
-            // avgBattTemp = avgBattTemp + 0.1;
-            // if (avgBattTemp > 80) {
-            //     avgBattTemp = 12;
-            // }
+            avgBattTemp = avgBattTemp + 0.1;
+            if (avgBattTemp > 80) {
+                avgBattTemp = 12;
+            }
 
             // rearTorque = rearTorque + 1;
             // if (rearTorque == 150) {
@@ -530,30 +537,30 @@ void loop() {
             //     nominalEnergyRemaining = 50;
             // }
 
-            // chargeLineCurrent = chargeLineCurrent + 1;
-            // if (chargeLineCurrent == 99) {
-            //     chargeLineCurrent = 50;
-            // }
+            chargeLineCurrent = chargeLineCurrent + 1;
+            if (chargeLineCurrent == 99) {
+                chargeLineCurrent = 50;
+            }
             
-            // chargeLinePower = chargeLinePower + 1;
-            // if (chargeLinePower == 99) {
-            //     chargeLinePower = 50;
-            // }
+            chargeLinePower = chargeLinePower + 1;
+            if (chargeLinePower == 99) {
+                chargeLinePower = 50;
+            }
             
-            // chargeLineVoltage = chargeLineVoltage + 1;
-            // if (chargeLineVoltage == 99) {
-            //     chargeLineVoltage = 50;
-            // }
+            chargeLineVoltage = chargeLineVoltage + 1;
+            if (chargeLineVoltage == 99) {
+                chargeLineVoltage = 50;
+            }
 
-            // maxRegen = maxRegen + 1;
-            // if (maxRegen == 99) {
-            //     maxRegen = 0;
-            // }
+            maxRegen = maxRegen + 1;
+            if (maxRegen == 99) {
+                maxRegen = 50;
+            }
 
-            // maxDischarge = maxDischarge + 1;
-            // if (maxDischarge == 99) {
-            //     maxDischarge = 50;
-            // }
+            maxDischarge = maxDischarge + 1;
+            if (maxDischarge == 99) {
+                maxDischarge = 50;
+            }
 
             // gradeEST = gradeEST + 1;
             // if (gradeEST == 40) {
@@ -574,10 +581,10 @@ void loop() {
             //     debug_counter = 0;
             // }
 
-            // UIspeed = UIspeed + 1;
-            // if (UIspeed > 99) {
-            //     UIspeed = 0.0;
-            // }
+            UIspeed = UIspeed + 1;
+            if (UIspeed > 50) {
+                UIspeed = 0.0;
+            }
 
             // testZeroToSixty = testZeroToSixty + 0.1;
             // if (testZeroToSixty > 15) {
@@ -589,10 +596,10 @@ void loop() {
             //     GPSSpeedMPH = 0;
             // }
 
-            // instantaneousEfficiency = instantaneousEfficiency + 1;
-            // if (instantaneousEfficiency > 200) {
-            //     instantaneousEfficiency = -100;
-            // }
+            instantaneousEfficiency = instantaneousEfficiency + 1;
+            if (instantaneousEfficiency > 200) {
+                instantaneousEfficiency = -100;
+            }
 
             // frontPower = frontPower + 1;
             // if (frontPower >= 150) {
@@ -604,10 +611,10 @@ void loop() {
             //     rearPower = -50;
             // }
 
-            // socAVE = socAVE + 0.01;
-            // if (socAVE >= 100.0) {
-            //     socAVE = 0.0;
-            // }
+            socAVE = socAVE + 0.01;
+            if (socAVE >= 100.0) {
+                socAVE = 0.0;
+            }
 
             battPowerW = battPower * 1000;
 
@@ -619,12 +626,9 @@ void loop() {
                     instantaneousEfficiency = 999;
                 }
             }
+            sendToDisplay(0x000, instantaneousEfficiency, "wh/m");
 
             //sendToDisplay(0x132, battVolts, battAmps, battPower, "V", "A", "KW");
-        
-            
-            
-            // sendToDisplay(0x000, instantaneousEfficiency, "wh/m");
             sendToDisplay(0x266, rearPower, rearPowerLimit, maxRegen, "KW", "KW", "KW");
             sendToDisplay(0x2E5, frontPower, frontPowerLimit, "KW", "KW");
 
@@ -638,7 +642,9 @@ void loop() {
                 avgBattTemp_temp = avgBattTemp;
             }
 
-            //sendToDisplay(0x336, maxDischarge, maxRegen, "KW", "KW");
+            // sendToDisplay(0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower, "KW", "KW", "KW");
+
+            sendToDisplay(0x336, maxDischarge, maxRegen, "KW", "KW");
             //sendToDisplay(0x001, testZeroToSixty, "s");
             //sendToDisplay(0x002, UIspeed, "mph");
         }

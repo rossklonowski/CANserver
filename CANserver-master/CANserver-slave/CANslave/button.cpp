@@ -13,7 +13,7 @@
 
 int lastSwitchValue = 0;
 
-void checkButton() {
+bool checkButton() {
 
     analogSetCycles(64);
 
@@ -31,9 +31,12 @@ void checkButton() {
         digitalWrite(led1pin, LOW);
     }
 
-    // if ((lastSwitchValue == 1) && (currentSwitchVal == 0)) {
-    //     Serial.print("Toggled");
-    // } 
+    if ((lastSwitchValue == 1) && (currentSwitchVal == 0)) {
+        Serial.print("Toggled");
+        return true;
+    } else {
+        return false;
+    }
 
     //Serial.println("Value:" + String(currentSwitchVal));
     lastSwitchValue = currentSwitchVal;

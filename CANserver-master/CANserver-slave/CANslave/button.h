@@ -10,6 +10,6 @@
 
 // #include "Arduino.h"
 
-void checkButton();
+bool checkButton();
 
 #endif /* generalCANSignalAnalysis_h */

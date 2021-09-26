@@ -19,28 +19,42 @@ static bool isFirstRecv = true;
 static bool debug = false;
 static int lastCount = 0;
 static int refreshCount = 0;
+static bool buttonWasPressed = false;
 
 static int maxRegenPower = 100;
 static int tempMaxRegen = 0;
 static int tempMaxDischarge = 0;
 
+static double nominalEnergyRemaining = 0.0;
+static double tripEnergy = 0.0;
+
+// vars
+static double avgBattTemp = 0.0;
+
+static double energyCounter = 0.0;
+
+//
+// bools
+//
 // batt I V P
-static bool displayBattPower = true;
+static bool displayBattPower = false;
 static bool displayBattAmps = false;
 static bool displayBattVolts = false;
+static bool displayBattPowerCurrentVoltageLCD = false;
 // grade
 static bool displayGrade = false;
 // batt temp
-static bool displayBattTempLCD = true;
+static bool displayBattTempLCD = false;
 static bool displayBattTempAlphaNum = false;
 // drive / regen limits
 static bool displayLimits = false;
 // wh/mi
-static bool displayInstantaneousEfficiency = true;
+static bool displayInstantaneousEfficiency = false;
+static bool displayInstantaneousEfficiencyLCD = false;
 static bool displayVehicleSpeed = false;
 static bool displayZeroToSixty = false;
 static bool displaySpeed = false;
-static bool displaySOCAveLCD = true;
+static bool displaySOCAveLCD = false;
 
 // front and rear power
 static bool displayFrontPowerLCD = false;
@@ -48,18 +62,13 @@ static bool displayRearPowerLCD = false;
 static bool displayRearPowerBarGraph = true;
 static bool displayFrontPowerBarGraph = true;
 
-// static int active = 0;
+//
+static bool displayChargeLineLCD = false;
 
-// dataTogglesRowZerop[active] = true;
-
-// static bool dataTogglesRowZero[] = {
-//                 displayBattTempLCD,
-//                 displaySOCAveLCD, 
-//                 displayFrontPowerLCD, 
-//                 displayRearPowerLCD, 
-//                 displayRearPowerBarGraph, 
-//                 displayFrontPowerBarGraph
-// };
+unsigned long myTime; // timer
+unsigned long previouscycle = 0;
+static int interval = 5000;
+int cycles = 0;
 
 // const int red_light_pin = 27;
 // const int green_light_pin = 14;
@@ -104,6 +113,8 @@ void writeLCD(payload_struct payload) { // decode message received and display t
             if (displayBattTempLCD) {
                 sendToLCD(0, payload.double_value_1, "Batt" , "F");
             }
+
+            avgBattTemp = payload.double_value_1; // update
             break;
 
         case 0x336 : // max regen, min discharge
@@ -111,12 +122,9 @@ void writeLCD(payload_struct payload) { // decode message received and display t
             if (displayLimits) {
                 // //printValueWithSingleUnit(payload.int_value_1, 9);
 
-                // if (payload.int_value_1 != tempMaxDischarge || payload.int_value_2 != tempMaxRegen) {
-                //     sendToLCD(0);
-                //     sendToLCD(0, payload.int_value_1, "Batt" , "F", 0, payload.double_value_1, "Batt" , "F");
-                //     lcd.setCursor(0, 0);
-                //     lcd.print(String("Lims " + String(payload.int_value_1) + "KW" + "/" + String(payload.int_value_2) + "KW"));
-                // }
+                if (payload.int_value_1 != tempMaxDischarge || payload.int_value_2 != tempMaxRegen) {
+                    sendToLCD(0, payload.int_value_1, "P Lims" , "KW", payload.int_value_2, "" , "KW");
+                }
             } 
             break;
 
@@ -126,6 +134,10 @@ void writeLCD(payload_struct payload) { // decode message received and display t
             if (displayBattPower) {
                 //printValueWithNoUnits(payload.int_value_3, 5);
             }
+
+            if (displayBattPowerCurrentVoltageLCD) {
+                //sendToLCD(0, payload.double_value_1, "Batt " , "F");
+            }
             break;
 
         case 0x000 : // instantaneousEfficiency
@@ -133,6 +145,10 @@ void writeLCD(payload_struct payload) { // decode message received and display t
             // write instantaneousEfficiency
             if (displayInstantaneousEfficiency) {
                 //printValueWithNoUnits(payload.int_value_1, 8);
+            }
+
+            if (displayInstantaneousEfficiencyLCD) {
+                sendToLCD(1, payload.int_value_1, "EFFCY", payload.unit1);
             }
             break;
 
@@ -189,6 +205,10 @@ void writeLCD(payload_struct payload) { // decode message received and display t
 
             break;
 
+        case 0x264 : // ID264ChargeLineStatus
+                if (displayChargeLineLCD)
+            break;
+
         case 0x266 : // rearPower
             if (displayRearPowerBarGraph) {
                 sendToBarGraphPower("rear", payload.int_value_1, payload.int_value_2, payload.int_value_3);
@@ -205,13 +225,61 @@ void writeLCD(payload_struct payload) { // decode message received and display t
                 sendToLCD(1, payload.double_value_1, "Avg SOC ", "%");
             }
             break;
+
+        case 0x352 : // bms_energystatus
+            //if () {
+                if (buttonWasPressed || energyCounter == 0.0) {
+                    energyCounter = payload.double_value_1; // reset the energy counter to the first value thaat is received
+                }
+
+                nominalEnergyRemaining = payload.double_value_1;
+                tripEnergy = nominalEnergyRemaining - energyCounter;
+
+                //sendToLCD(energyCounter);
+            //}
+            break;
     }
 }
 
 // callback function that tells us when data from Master is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
-    checkButton();
+    long currentMillis = millis();
+    if (currentMillis - previouscycle >= interval) {
+        previouscycle = currentMillis;
+
+        Serial.println("Cycles: " + String(cycles));
+        if (cycles == 0) {
+            //displayBattPowerCurrentVoltageLCD = true;
+        } else if (cycles == 1) {
+            //displayBattPowerCurrentVoltageLCD = false;
+
+            displayBattTempLCD = true; // this works //0
+            displayInstantaneousEfficiencyLCD = true; //1
+        } else if (cycles == 2) {
+            displayBattTempLCD = false; // this works
+            displayInstantaneousEfficiencyLCD = false;
+
+            displayLimits = true; // this works //0
+                                                //1
+        } else if (cycles == 3) {
+            displayLimits = false; // this works
+
+            displaySOCAveLCD = true; // this works
+        } else if (cycles == 4) {
+            displaySOCAveLCD = false; // this works
+            cycles = 0;
+        }
+
+        cycles = cycles + 1;
+        // turn the next two variables to true, and the current two; to false
+    }
+
+    buttonWasPressed = checkButton();
+
+    if (buttonWasPressed) {
+        energyCounter = 0.0;
+    }
 
     // refreshCount = refreshCount + 1;
 
