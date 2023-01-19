@@ -1,56 +1,64 @@
 //
-//  button.cpp
+//  display.cpp
 //  To be used with CANserver created by Josh Wardell
 //
 //  Created by Ross Klonowski on September 3 2021.
 //
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <esp_now.h>
-#include <Adafruit_GFX.h>
-#include "Adafruit_LEDBackpack.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <LiquidCrystal.h>
-#include "display.h"
 
-#include "alphanumeric.h"
-#include "bargraph.h"
-#include "lcd.h"
-
-// int lastSwitchValue = 0;
-
-// static bool isIdle = true;
-// static bool isFirstRecv = true;
-// static bool debug = false;
-
-// static int lastCount = 0;
-
-// String valueToPrint = "";
-
-// static int refreshCount = 0;
-
-// static bool displayBattPower = true;
-// static bool displayBattAmps = false;
-// static bool displayBattVolts = false;
-// static bool displayGrade = false;
-// static bool displayBattTemp = false;
-// static bool displayLimits = false;
-// static bool displayInstantaneousEfficiency = true;
-// static bool displayVehicleSpeed = false;
-// static bool displayZeroToSixty = false;
-// static bool displaySpeed = false;
-
-// static bool displayFrontPower = true;
-// static bool displayRearPower = true;
-
-// void setupDisplays() {
-//     setupAlphaNum();
-//     setupBargraph();
-//     setupLCD();
-
-//     displayLoadingAnimationAlpha();
+// void setup_peripheral_devices() {
+//     setupBarGraphs();
 //     displayLoadingAnimationBarGraph();
+    
+//     setupLCD();
 //     displayLoadingAnimationLCD();
+
+//     // setup_button(39);
+//     // setup_button(36);
+//     setup_button();
+// }
+
+// void update_peripherals(int page) {
+//     // if (page == 1) {
+//     //     if (displayBattTempLCD) {
+//     //         sendToLCD(0, "Batt: " + String(avgBattTemp) + "F", 1, String(minBattTemp) + "F/" + String(maxBattTemp) + "F");
+//     //     }
+//     // }
+
+//     // if (page == 2) {
+//     //     if (true) {
+//     //         sendToLCD(0, "Nom Energy Rem:", 1, String(nominalEnergyRemaining) + "KWh");
+//     //     }
+//     // }
+
+//     // if (page == 3) {
+//     //     if (true) {
+//     //         sendToLCD(0, "FR Motor Power:", 1, String(frontPower) + "KW " + String(rearPower) + "KW");
+//     //     }
+//     // }
+
+//     // if (page == 4) {
+//     //     if (true) {
+//     //         sendToLCD(0, "HV Battery:", 1, String(battVolts) + "V " + String(battAmps) + "A " + String(battPower) + "KW");
+//     //     }
+//     // }
+
+//     // if (page == 5) {
+//     //     if (true) {
+//     //         sendToLCD(0, "Charge Line:", 1, String(chargeLineVoltage) + "V " + String(chargeLineCurrent) + "A " + String(chargeLinePower) + "KW");
+//     //     }
+//     // }
+
+//     // if (page == 6) {
+//     //     if (true) {
+//     //         sendToLCD(0, "mps/totmsgs:", 1, String(data_rate) + " " + String(messages_received_counter) + "");
+//     //     }
+//     // }
+
+//     // if (page == 7) {
+//     //     if (true) {
+//     //         energyCounter = lastNominalEnergyRemaining - nominalEnergyRemaining;
+//     //         sendToLCD(0, "Energy counter:", 1, String(energyCounter*-1.0) + " KWh");
+//     //     }
+//     // }
 // }

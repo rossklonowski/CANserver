@@ -10,34 +10,49 @@
 #include "Adafruit_LEDBackpack.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "program_settings.h"
 
-int lastSwitchValue = 0;
+int lastSwitchValue1 = 0;
+int lastSwitchValue2 = 0;
 
-bool checkButton() {
-
+void setup_buttons() {
     analogSetCycles(64);
+    pinMode(page_button, INPUT);
+    delay(100);
+    analogSetCycles(64);
+    pinMode(reset_data_button, INPUT);
+}
 
-    const int pin = 36;
-    const int led1pin = 9;
-
-    pinMode(pin, INPUT);
-    pinMode(led1pin, OUTPUT);
-
+bool check_page_button(const int pin) {
+    bool pressed_and_released_status = true;
     int currentSwitchVal = digitalRead(pin);
-    if (currentSwitchVal == 1) {
-        digitalWrite(led1pin, HIGH);
-        //Serial.print("High");
+    // Serial.println("Pin: " + String(page_button) + " Status: " + String(currentSwitchVal));
+
+    if ((lastSwitchValue1 == 1) && (currentSwitchVal == 0)) {
+        pressed_and_released_status = true;
+        Serial.println(String(pin) + "XXX");
     } else {
-        digitalWrite(led1pin, LOW);
+        pressed_and_released_status = false;
     }
 
-    if ((lastSwitchValue == 1) && (currentSwitchVal == 0)) {
-        Serial.print("Toggled");
-        return true;
+    lastSwitchValue1 = currentSwitchVal;
+
+    return pressed_and_released_status;
+}
+
+bool check_reset_button(const int pin) {
+    bool pressed_and_released_status = true;
+    int currentSwitchVal = digitalRead(pin);
+    // Serial.println("Pin: " + String(page_button) + " Status: " + String(currentSwitchVal));
+
+    if ((lastSwitchValue2 == 1) && (currentSwitchVal == 0)) {
+        pressed_and_released_status = true;
+        Serial.println(String(pin) + "---");
     } else {
-        return false;
+        pressed_and_released_status = false;
     }
 
-    //Serial.println("Value:" + String(currentSwitchVal));
-    lastSwitchValue = currentSwitchVal;
+    lastSwitchValue2 = currentSwitchVal;
+
+    return pressed_and_released_status;
 }

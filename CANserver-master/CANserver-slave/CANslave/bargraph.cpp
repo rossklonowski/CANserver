@@ -5,12 +5,12 @@
 //  Created by Ross Klonowski on September 3 2021.
 //
 
-#include <esp_now.h>
 #include <Adafruit_GFX.h>
 #include "Adafruit_LEDBackpack.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "bargraph.h"
+#include <esp_now.h> // for ESP32 to ESP32 wifi communication
 
 Adafruit_24bargraph BarGraph1 = Adafruit_24bargraph();
 Adafruit_24bargraph BarGraph2 = Adafruit_24bargraph();

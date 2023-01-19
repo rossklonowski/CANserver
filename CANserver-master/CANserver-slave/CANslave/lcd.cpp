@@ -29,11 +29,6 @@ void lcdPrint(String content) {
     lcd.print(content + whiteSpaceText);
 }
 
-void sendToLCD(uint8_t row, int value1, String field1, String units1, int value2, String field2, String units2) {
-    lcd.setCursor(0, row);
-    lcdPrint(field1 + " " + String(value1) + units1 + " " + field2 + String(value2) + " " + units2);
-}
-
 void sendToLCD(uint8_t row, int value, String field, String units) {
     lcd.setCursor(0, row); // columns rows
     lcdPrint(field + " " + String(value) + units);
@@ -43,6 +38,30 @@ void sendToLCD(uint8_t row, double value, String field, String units) {
     lcd.setCursor(0, row); // columns rows
     lcdPrint(field + " " + String(value) + units);
 }
+
+void sendToLCD(uint8_t row, int value1, String field1, String units1, int value2, String field2, String units2) {
+    lcd.setCursor(0, row);
+    lcdPrint(field1 + " " + String(value1) + units1 + " " + field2 + String(value2) + " " + units2);
+}
+
+void sendToLCD(uint8_t row, int value1, String field1, String units1, int value2, String field2, String units2, int value3, String field3, String units3) {
+    lcd.setCursor(0, row);
+    lcdPrint(field1 + " " + String(value1) + units1 + " " + field2 + " " + String(value2) + units2 + " " + field3 + " " + String(value3) + String(units3));
+}
+
+void sendToLCD(uint8_t row, String string) {
+    lcd.setCursor(0, row);
+    lcdPrint(string);
+}
+
+void sendToLCD(uint8_t row1, String string1, uint8_t row2, String string2) {
+    lcd.setCursor(0, row1);
+    lcdPrint(string1);
+
+    lcd.setCursor(0, row2);
+    lcdPrint(string2);
+}
+
 
 void setupLCD() {
     // set up the LCD's number of columns and rows:

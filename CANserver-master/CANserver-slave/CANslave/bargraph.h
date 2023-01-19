@@ -1,14 +1,13 @@
 //
 //  bargraph.h
 //
-//
-//  Created by Ross Klonowski on September 3 2021.
+//  Created by Ross Klonowski on January 16 2021.
 //
 
 #ifndef bargraph_h
 #define bargraph_h
 
-void writeLED(int display, int led);
+#include <esp_now.h>
 
 void sendToBarGraphPower(String, int power, int maxPower, int maxRegenPower);
 

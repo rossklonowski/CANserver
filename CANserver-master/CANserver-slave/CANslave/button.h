@@ -1,15 +1,16 @@
 //
 //  button.h
 //
-//
-//  Created by Ross Klonowski on September 3 2021.
+//  Created by Ross Klonowski on January 16 2021.
 //
 
 #ifndef button_h
 #define button_h
 
-// #include "Arduino.h"
+void setup_buttons();
 
-bool checkButton();
+bool check_page_button(const int);
 
-#endif /* generalCANSignalAnalysis_h */
+bool check_reset_button(const int);
+
+#endif /* button_h */

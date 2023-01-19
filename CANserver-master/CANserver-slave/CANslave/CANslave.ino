@@ -1,3 +1,9 @@
+//
+//  CANslave.ino
+//
+//  Created by Ross Klonowski on January 16 2021.
+//
+
 #include <esp_now.h>
 #include <WiFi.h>
 #include <Adafruit_GFX.h>
@@ -5,11 +11,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <LiquidCrystal.h>
-//#include "display.h"
 #include "bargraph.h"
 #include "button.h" 
 #include "lcd.h"
-#include "alphanumeric.h"
+
+#include "payload.h"
+#include "carDataVariables.h"
+#include "display_settings.h"
+#include "program_settings.h"
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
@@ -19,224 +28,152 @@ static bool isFirstRecv = true;
 static bool debug = false;
 static int lastCount = 0;
 static int refreshCount = 0;
-static bool buttonWasPressed = false;
+static bool page_button_pressed = false;
+static bool reset_data_button_pressed = false;
+static int page = 1;
+const int max_pages = 13;
 
-static int maxRegenPower = 100;
-static int tempMaxRegen = 0;
-static int tempMaxDischarge = 0;
-
-static double nominalEnergyRemaining = 0.0;
-static double tripEnergy = 0.0;
-
-// vars
-static double avgBattTemp = 0.0;
-
-static double energyCounter = 0.0;
-
-//
-// bools
-//
-// batt I V P
-static bool displayBattPower = false;
-static bool displayBattAmps = false;
-static bool displayBattVolts = false;
-static bool displayBattPowerCurrentVoltageLCD = false;
-// grade
-static bool displayGrade = false;
-// batt temp
-static bool displayBattTempLCD = false;
-static bool displayBattTempAlphaNum = false;
-// drive / regen limits
-static bool displayLimits = false;
-// wh/mi
-static bool displayInstantaneousEfficiency = false;
-static bool displayInstantaneousEfficiencyLCD = false;
-static bool displayVehicleSpeed = false;
-static bool displayZeroToSixty = false;
-static bool displaySpeed = false;
-static bool displaySOCAveLCD = false;
-
-// front and rear power
-static bool displayFrontPowerLCD = false;
-static bool displayRearPowerLCD = false;
-static bool displayRearPowerBarGraph = true;
-static bool displayFrontPowerBarGraph = true;
-
-//
-static bool displayChargeLineLCD = false;
-
-unsigned long myTime; // timer
 unsigned long previouscycle = 0;
-static int interval = 5000;
-int cycles = 0;
+unsigned long update_previouscycle = 0;
 
-// const int red_light_pin = 27;
-// const int green_light_pin = 14;
-// const int blue_light_pin = 12;
+static int interval = 1000;
+static int update_interval = 250;
 
-// // setting PWM properties
-// const int freq = 5000;
-// const int ledChannel = 5; // r
-// const int ledChanne2 = 6; // g this works
-// const int ledChanne3 = 4; // b
-// const int resolution = 8;
+static int messages_received_counter = 0;
+static int last_messages_received_counter = 0;
 
+bool connectedToMaster = false;
 
-typedef struct payload_struct {
-    uint32_t can_id;
-    int int_value_1;
-    int int_value_2;
-    int int_value_3;
-    double double_value_1;
-    String unit1;
-    String unit2;
-    String unit3;
-} payload_struct;
+double data_rate = 0.0;
 
-
-void writeLCD(payload_struct payload) { // decode message received and display to quadalphanumeric displays
+void handle_received_data(payload payload) {
 
     switch (payload.can_id) {
-        case 0x267 : // gradeEST
-            //alphanumPrint(payload.int_value_1);
-            if (displayGrade) {
-                //printValueWithSingleUnit(payload.int_value_1, 7);
-            }
-            break;
-
         case 0x312 : // batt temp
-            //alphanumPrint();
-            if (displayBattTempAlphaNum) {
-                printValueWithSingleUnit(payload.double_value_1, 7);
-            }
+            minBattTemp = payload.double_value_1;
+            minBattTemp = minBattTemp * (9/5) + 32; // convert to f
+            
+            maxBattTemp = payload.double_value_2;
+            maxBattTemp = maxBattTemp * (9/5) + 32; // convert to f
 
-            if (displayBattTempLCD) {
-                sendToLCD(0, payload.double_value_1, "Batt" , "F");
-            }
+            avgBattTemp = (minBattTemp + maxBattTemp) / 2.0;
 
-            avgBattTemp = payload.double_value_1; // update
             break;
 
         case 0x336 : // max regen, min discharge
-            //lcdPrint(payload.int_value_1);
-            if (displayLimits) {
-                // //printValueWithSingleUnit(payload.int_value_1, 9);
-
-                if (payload.int_value_1 != tempMaxDischarge || payload.int_value_2 != tempMaxRegen) {
-                    sendToLCD(0, payload.int_value_1, "P Lims" , "KW", payload.int_value_2, "" , "KW");
-                }
-            } 
+            maxDischarge = payload.int_value_1;
+            maxRegen = payload.int_value_2;
+            
             break;
 
         case 0x132 : // HVBattAmpVolt
-            //alphanumPrint(payload.int_value_1);
-            // write power to display
-            if (displayBattPower) {
-                //printValueWithNoUnits(payload.int_value_3, 5);
-            }
-
-            if (displayBattPowerCurrentVoltageLCD) {
-                //sendToLCD(0, payload.double_value_1, "Batt " , "F");
-            }
-            break;
-
-        case 0x000 : // instantaneousEfficiency
-            //alphanumPrint(payload.int_value_1);
-            // write instantaneousEfficiency
-            if (displayInstantaneousEfficiency) {
-                //printValueWithNoUnits(payload.int_value_1, 8);
-            }
-
-            if (displayInstantaneousEfficiencyLCD) {
-                sendToLCD(1, payload.int_value_1, "EFFCY", payload.unit1);
-            }
-            break;
-
-        case 0x3D9 : // gps veh speed
-            //alphanumPrint(payload.int_value_1);
-            // write instantaneousEfficiency
-            if (displayVehicleSpeed) {
-                // printValueWithNoUnits(payload.int_value_1, 8);
-            }
+            battVolts = payload.int_value_1;
+            battAmps = payload.int_value_2;
+            battPower = payload.int_value_3;
+            
             break;
 
         case 0x001 : // 0-60 time
-            {
-                // write 0-60
-                if (displayZeroToSixty) {
-                    //printValueWithSingleUnit(payload.double_value_1, 7);
-                }
-
-                // lcd.setCursor(0, 1);
-                // String message = "";
-                // if (payload.double_value_1 == -1.0) {
-                //     message = "Active     ";
-                //     lcd.print("0-60:" + message);
-                // } else if (payload.double_value_1 == -2.0) {
-                //     message = "Armed      ";
-                //     lcd.print("0-60:" + message);
-                // } else if (payload.double_value_1 == -3.0) {
-                //     message = "Run Ignored";
-                //     lcd.print("0-60:" + message);
-                // } else {
-                //     lcd.print("0-60:" + String(payload.double_value_1) + String("secs"));
-                // }
-                break;
+            // write 0-60
+            if (displayZeroToSixty) {
+                //printValueWithSingleUnit(payload.double_value_1, 7);
             }
 
-        case 0x002 : // UI_Speed
-            if (displaySpeed) {
-                sendToLCD(1, payload.double_value_1, "Speed", "mph");
-            }
             break;
-
 
         case 0x2E5 : // frontPower
-            if (displayFrontPowerBarGraph) {
-                sendToBarGraphPower("front", payload.int_value_1, payload.int_value_2, payload.int_value_3);
-            }
+            frontPower = payload.int_value_1;
+            frontPowerLimit = payload.int_value_2;
+            maxRegen = payload.int_value_3;
 
-            if (displayFrontPowerLCD) {
-                sendToLCD(0, payload.int_value_1, "FP", "kW");
+            if (frontPower >= frontPowerMax) {
+                frontPowerMax = frontPower;
             }
+            
+            if (displayFrontPowerBarGraph) {
+                sendToBarGraphPower("front", frontPower, frontPowerLimit, maxRegen);
+            }
+            
             break;
 
-        case 0x252 : // BMS
+        case 0x292 : // BMS_SOC
+            socAVE = payload.double_value_1;
+            battTempPct = payload.double_value_2;
+            
+            break;
+
+        case 0x257 : // DIspeed
+            UIspeed = payload.double_value_1;
+            UIspeed = UIspeed * 0.621371; // for mph
 
             break;
 
         case 0x264 : // ID264ChargeLineStatus
-                if (displayChargeLineLCD)
+            chargeLineCurrent = payload.int_value_1;
+            chargeLineVoltage = payload.int_value_2;
+            chargeLinePower = payload.int_value_3;
+
             break;
 
         case 0x266 : // rearPower
+
+            rearPower = payload.int_value_1;
+            rearPowerLimit = payload.int_value_2;
+            maxRegen = payload.int_value_3;
+            
+            if (rearPower >= rearPowerMax) {
+                rearPowerMax = rearPower;
+            }
+
             if (displayRearPowerBarGraph) {
-                sendToBarGraphPower("rear", payload.int_value_1, payload.int_value_2, payload.int_value_3);
+                sendToBarGraphPower("rear", rearPower, rearPowerLimit, maxRegen);
             }
-
-            if (displayRearPowerLCD) {
-                sendToLCD(1, payload.int_value_1, "RP", "kW");
-            }
-
+            
             break;
 
-        case 0x292 : // bms
-            if (displaySOCAveLCD) {
-                sendToLCD(1, payload.double_value_1, "Avg SOC ", "%");
-            }
+        case 0x321 :
+            tempCoolandBatInlet = payload.int_value_1;
+            tempCoolandBatPTlet = payload.int_value_2;
+
             break;
 
         case 0x352 : // bms_energystatus
-            //if () {
-                if (buttonWasPressed || energyCounter == 0.0) {
-                    energyCounter = payload.double_value_1; // reset the energy counter to the first value thaat is received
-                }
+            nominalEnergyRemaining = payload.double_value_1;
+            nominalFullPackEnergy = payload.double_value_2;
 
-                nominalEnergyRemaining = payload.double_value_1;
-                tripEnergy = nominalEnergyRemaining - energyCounter;
+            break;
 
-                //sendToLCD(energyCounter);
-            //}
+        case 0x376 : // frontInverterTemps
+            frontInverterTemp = payload.double_value_1;
+            frontInverterTemp = frontInverterTemp * (9/5) + 32;
+            break;
+
+        case 0x315 : // rearInverterTemps
+            rearInverterTemp = payload.double_value_1;
+            rearInverterTemp = rearInverterTemp * (9/5) + 32;
+
+            break;
+
+        case 0x383 : // VCRIGHT_thsStatus
+            cabin_temp = payload.int_value_1;
+            cabin_temp = cabin_temp * (9/5) + 32;
+            
+            break;
+
+        case 0x2B3 : // VCRIGHT_logging1Hz
+            cabin_humidity = payload.int_value_1;
+
+            break;
+
+        case 0x3E7 : // custom uptime
+            Serial.println(payload.int_value_1);
+            masterUpTime = payload.int_value_1;
+
+            break;
+
+        case 0x3B6 : // odometer
+            odometer = payload.double_value_1;
+
             break;
     }
 }
@@ -244,152 +181,153 @@ void writeLCD(payload_struct payload) { // decode message received and display t
 // callback function that tells us when data from Master is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
-    long currentMillis = millis();
-    if (currentMillis - previouscycle >= interval) {
-        previouscycle = currentMillis;
+    messages_received_counter = messages_received_counter + 1;
 
-        Serial.println("Cycles: " + String(cycles));
-        if (cycles == 0) {
-            //displayBattPowerCurrentVoltageLCD = true;
-        } else if (cycles == 1) {
-            //displayBattPowerCurrentVoltageLCD = false;
+    payload new_data;
+    memcpy(&new_data, incomingData, sizeof(new_data));
+    // Serial.println("Incoming payload size: " + String(sizeof(new_data)));
 
-            displayBattTempLCD = true; // this works //0
-            displayInstantaneousEfficiencyLCD = true; //1
-        } else if (cycles == 2) {
-            displayBattTempLCD = false; // this works
-            displayInstantaneousEfficiencyLCD = false;
-
-            displayLimits = true; // this works //0
-                                                //1
-        } else if (cycles == 3) {
-            displayLimits = false; // this works
-
-            displaySOCAveLCD = true; // this works
-        } else if (cycles == 4) {
-            displaySOCAveLCD = false; // this works
-            cycles = 0;
-        }
-
-        cycles = cycles + 1;
-        // turn the next two variables to true, and the current two; to false
-    }
-
-    buttonWasPressed = checkButton();
-
-    if (buttonWasPressed) {
-        energyCounter = 0.0;
-    }
-
-    // refreshCount = refreshCount + 1;
-
-    // if (isFirstRecv) {
-    //     initDisplayUnits();
-
-    //     isFirstRecv = false;
-    // }
-
-    isIdle = false; // on our first received message, flip idle status
-
-    payload_struct myData;
-    memcpy(&myData, incomingData, sizeof(myData));
-
-    if (debug) {
-        Serial.print("Bytes received: ");
-        Serial.println(len);
-
-        Serial.print("can_id received: ");
-        Serial.println(myData.can_id);
-
-        Serial.print("int_value_1 received: ");
-        Serial.println(myData.int_value_1);
-
-        Serial.print("int_value_2 received: ");
-        Serial.println(myData.int_value_2);
-
-        Serial.print("int_value_3 received: ");
-        Serial.println(myData.int_value_3);
-
-        Serial.print("double_value_1 received: ");
-        Serial.println(myData.double_value_1);
-        
-        Serial.print("Unit1 received: ");
-        Serial.println(myData.unit1);
-
-        Serial.print("Unit2 received: ");
-        Serial.println(myData.unit2);
-
-        Serial.print("Unit3 received: ");
-        Serial.println(myData.unit2);
-
-        Serial.print("\n");
-    }
-
-    // if (refreshCount > 50) {
-    //     alpha1.setBrightness(15);
-    //     alpha1.writeDisplay();
-    //     alpha2.setBrightness(15);
-    //     alpha2.writeDisplay();
-    //     alpha3.setBrightness(15);
-    //     alpha3.writeDisplay();
-    //     alpha4.setBrightness(15);
-    //     alpha4.writeDisplay();
-    //     alpha5.setBrightness(15);
-    //     alpha5.writeDisplay();
-
-    //     refreshCount = 0;
-    // }
-
-    writeLCD(myData); // decode message received and display to quadalphanumeric displays
-}
+    handle_received_data(new_data); // decode message received and update data variables
+}  
 
 void setup() {
-
-    // ledcSetup(ledChannel, freq, resolution);
-    // ledcSetup(ledChanne2, freq, resolution);
-    // ledcSetup(ledChanne3, freq, resolution);
-
-    // // attach the channel to the GPIO to be controlled
-    // ledcAttachPin(red_light_pin, ledChannel);
-    // ledcAttachPin(green_light_pin, ledChanne2);
-    // ledcAttachPin(blue_light_pin, ledChanne3);
-
-    //setupDisplays();
-
     setupBarGraphs();
+    // displayLoadingAnimationBarGraph();
+    
     setupLCD();
-    displayLoadingAnimationBarGraph();
-    displayLoadingAnimationLCD();
+    // displayLoadingAnimationLCD();
 
-    setupAlphaNum();
-    displayLoadingAnimationAlphaNum();
+    setup_buttons();
+
+    // setupAlphaNum();
+    // displayLoadingAnimationAlphaNum();
     
     Serial.begin(115200);
-    delay(250);
  
     // put esp32 in WIFI station mode
     WiFi.mode(WIFI_STA);
-    Serial.print("Mac Address in Station: ");
-    Serial.println(WiFi.macAddress());
+    // Serial.print("Mac Address in Station: ");
+    // Serial.println(WiFi.macAddress());
     
     // init esp now (connection to slave wia wifi)
     if (esp_now_init() != ESP_OK) {
-      Serial.println("Error initializing ESP-NOW");
-    return;
+        Serial.println("Error initializing ESP-NOW");
+        return;
     }
 
     // create call back (OnDataRecv will run every time a message is received via esp now)
     esp_now_register_recv_cb(OnDataRecv);
 }
 
-// nothing to do in loop - program is asynchronous
 void loop() {
+    // button stuff    
+    page_button_pressed = check_page_button(page_button);
+    if (page_button_pressed) {
+        page = page + 1;
+        if (page == max_pages + 1) {
+            page = 1; // reset
+        } 
+    }
 
-    // for(int dutyCycle = 0; dutyCycle <= 255; dutyCycle++){   
-    //     // changing the LED brightness with PWM
-    //     ledcWrite(ledChannel, dutyCycle);
-    //     ledcWrite(ledChanne2, dutyCycle);
-    //     ledcWrite(ledChanne3, dutyCycle);
-    //     delay(15);
-    // }   
+    reset_data_button_pressed = check_reset_button(reset_data_button);
+    if (reset_data_button_pressed) {
+        lastNominalEnergyRemaining = nominalEnergyRemaining;
+    }
+
+    // get data rate stats and update after each time interval (1 second)
+    long currentMillis = millis();
+    if (currentMillis - previouscycle >= interval) {
+        previouscycle = currentMillis;
+
+        int messages_received_last_interval = messages_received_counter - last_messages_received_counter;
+        double messages_received_last_interval_double = (double)messages_received_last_interval;
+        double interval_seconds = (double)interval/1000.00;
+        data_rate = messages_received_last_interval_double / interval_seconds;
+        last_messages_received_counter = messages_received_counter;
+    }
+
+    // update displays each specified interval
+    long update_currentMillis = millis();
+    if (update_currentMillis - update_previouscycle >= update_interval) {
+        update_previouscycle = update_currentMillis;
+            
+        if (page == 1) {
+            if (true) {
+                sendToLCD(0, "Batt:" + String(battTempPct) + "%", 1, String(minBattTemp) + "F/" + String(maxBattTemp) + "F");
+            }
+        }
+
+        if (page == 2) {
+            if (true) {
+                sendToLCD(0, "Max Regen/Disch", 1, String(maxRegen) + "KW   " + String(maxDischarge) + "KW");
+            }
+        }
+
+        if (page == 3) {
+            if (true) {
+                sendToLCD(0, "FR Motor Power", 1, String(frontPower) + "KW     " + String(rearPower) + "KW");
+            }
+        }
+
+        if (page == 4) {
+            if (true) {
+                sendToLCD(0, "HV Battery", 1, String(battVolts) + "V " + String(battAmps) + "A " + String(battPower) + "KW");
+            }
+        }
+
+        if (page == 5) {
+            if (true) {
+                sendToLCD(0, "SoCavg", 1, String(socAVE) + "%");
+            }
+        }
+
+        if (page == 6) {
+            if (true) {
+                sendToLCD(0, "Inverter F/R", 1, String(frontInverterTemp) + "F " + String(rearInverterTemp) + "F");
+            }
+        }
+
+        if (page == 7) {
+            if (true) {
+                sendToLCD(0, "Cabin:Temp/Humid", 1, String(cabin_temp) + "F " + String(cabin_humidity) + "%");
+            }
+        }
+
+        if (page == 8) {
+            if (true) {
+                sendToLCD(0, "Nominal rem/full", 1, String(nominalEnergyRemaining) + "/" + String(nominalFullPackEnergy) + "KWh");
+            }
+        }
+
+        if (page == 9) {
+            if (true) {
+                energyCounter = lastNominalEnergyRemaining - nominalEnergyRemaining;
+                sendToLCD(0, "Energy Counter", 1, String(energyCounter*-1.0) + " KWh");
+            }
+        }
+
+        if (page == 10) {
+            if (true) {
+                sendToLCD(0, "mps/ total msgs", 1, String(data_rate) + " " + String(messages_received_counter) + "");
+            }
+        }
+
+        if (page == 11) {
+            if (true) {
+                sendToLCD(0, "Up time (Master)", 1, String(masterUpTime) + " seconds");
+            }
+        }
+
+        if (page == 12) {
+            if (true) {
+                sendToLCD(0, "Connected", 1, String(connectedToMaster));
+            }
+        }
+
+        if (page == 13) {
+            if (true) {
+                sendToLCD(0, "Odometer", 1, String(odometer));
+            }
+        }
+    }
 }
