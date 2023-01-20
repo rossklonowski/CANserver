@@ -43,7 +43,6 @@ bool check_page_button(const int pin) {
 bool check_reset_button(const int pin) {
     bool pressed_and_released_status = true;
     int currentSwitchVal = digitalRead(pin);
-    // Serial.println("Pin: " + String(page_button) + " Status: " + String(currentSwitchVal));
 
     if ((lastSwitchValue2 == 1) && (currentSwitchVal == 0)) {
         pressed_and_released_status = true;

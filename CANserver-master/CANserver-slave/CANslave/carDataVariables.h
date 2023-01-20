@@ -48,6 +48,7 @@ static int chargeLineCurrent = 0;
 static int chargeLinePower = 0;
 
 static double odometer = 0;
+static double tripOdometer = 0;
 
 static double energyCounter = 0.0;
 

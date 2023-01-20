@@ -26,6 +26,7 @@
 #include "carDataVariables.h"
 #include "simulation.h"
 #include "constants.h"
+#include "payload.h"
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
@@ -42,28 +43,83 @@ static bool debug = false;
 static bool serial_switch = false;
 static int debug_counter = 0;
 
-unsigned long previouscycle = 0;
 static int interval = 1000;
+unsigned long previouscycle = 0;
+
+static int intervalReceiver = 1000;
+unsigned long previouscycleReceiver = 0;
+
+static int intervalCheckForImUp = 10000;
+unsigned long previouscycleCheckForImUp = 0;
+
+long timeSinceLastReceiverPing = 0;
+long millisAtLastPing = 0;
+
+bool connectedToSlave = true;
+
 
 generalCANSignalAnalysis analyzeMessage; // initialize library
 
-// callback function - gives us feedback about the sent data
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-    if (debug) {
-        Serial.print("\r\nLast Packet Send Status:\t");
-        Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+unsigned long currentMillisSlave = millis();
+
+void handle_received_data(payload payload) {
+
+    switch (payload.can_id) {
+
+        case 0x3E6 : // Received an Ack
+            Serial.println("Received message that slave is up");
+            connectedToSlave = true;
+            // sendToDisplay(masterMacAddress, 0x3E6, 1);
+            // slave is UP
+            // reset the time since we last talked to slave    
+            digitalWrite(LED2, HIGH); // flash led for loop iter
+
+            timeSinceLastReceiverPing = 0;
+            millisAtLastPing = millis();
+        
+            break;
+
+        // case 0x3E5 : // A request for an ack
+        //     Serial.println("Received a request for an Ack");
+        //     connectedToSlave = true;
+        //     // sendToDisplay(masterMacAddress, 0x3E6, 1);
+        //     // slave is UP
+        //     // reset the time since we last talked to slave    
+        //     digitalWrite(LED2, HIGH); // flash led for loop iter
+
+        //     timeSinceLastReceiverPing = 0;
+        //     millisAtLastPing = millis();
+        
+        //     break;
     }
 }
+
+// callback function that tells us when data from Master is received
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+
+    payload new_data;
+    memcpy(&new_data, incomingData, sizeof(new_data));
+
+    handle_received_data(new_data); // decode message received and update data variables
+}
+
+// callback function - gives us feedback about the sent data
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+    if (status == ESP_NOW_SEND_SUCCESS) {
+        // Serial.println("Delivery Success");
+    } else {
+        Serial.println("Delivery Fail!");
+    }
+}
+
 
 void setup(){
 
     pinMode(LED2, OUTPUT); // configure blue LED
+    digitalWrite(LED2, HIGH);
 
     Serial.begin(115200);
     delay(100);
-
-    // Serial.print("ESP Board MAC Address:  ");
-    // Serial.println(WiFi.macAddress());
 
     CAN0.begin(BITRATE);
     CAN0.watchFor(); // then let everything else through anyway
@@ -71,15 +127,14 @@ void setup(){
     // init wifi station (STA means device that is capable of 802.11 protocol)
     WiFi.mode(WIFI_STA);
 
-    Serial.print("Please connect to the Station's IP Address at: ");
-    IPAddress IP = WiFi.softAPIP();
-    Serial.println(IP); // always 192.168.4.1
-
     // init ESP-NOW
     if (esp_now_init() != ESP_OK) {
         Serial.println("Error initializing ESP-NOW");
         return;
     }
+
+    // create call back (OnDataRecv will run every time a message is received via esp now)
+    esp_now_register_recv_cb(OnDataRecv);
 
     // connect function that runs when data is sent
     esp_now_register_send_cb(OnDataSent);
@@ -98,22 +153,46 @@ void setup(){
 }
 
 void loop() {
+
     unsigned long currentMillis = millis();
+
+    timeSinceLastReceiverPing = currentMillis - millisAtLastPing;
+    if (timeSinceLastReceiverPing > 2000) {
+        
+        if (connectedToSlave) {
+            Serial.println("LOOKS LIKE THE SLAVE IS OFFLINE");
+            connectedToSlave = false;    
+        }
+
+        if (connectedToSlave == false) {
+            digitalWrite(LED2, LOW); // flash led for loop iter
+        }
+    }
 
     if (Serial) {
         long currentMillis = millis();
         if (currentMillis - previouscycle >= interval) {
             previouscycle = currentMillis;
 
-            digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
-
-            simulate();
+            // simulate();
 
             masterUpTime = masterUpTime + 1;
             sendToDisplay(receiverMacAddress, 0x3E7, masterUpTime);
         }
     }
-    
+
+    if (Serial) {
+        long currentMillis = millis();
+        if (currentMillis - previouscycleReceiver >= intervalReceiver) {
+            previouscycleReceiver = currentMillis;
+            Serial.println("Sending are you up message");
+
+            // digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
+
+            sendToDisplay(receiverMacAddress, 0x3E6, 1);
+        }
+    }
+
     // can message processing follows
     CAN_FRAME message;
 
@@ -136,7 +215,6 @@ void loop() {
             Serial.print("\n");
         }
 
-        digitalWrite(LED2, !digitalRead(LED2)); //flash LED2 to show data Rx
         
         switch (message.id) {
             case 0x00C: // UI_status
@@ -279,83 +357,85 @@ void loop() {
                 break;
         }
         
-        switch (message.id) {
-            case 0x132: // HVBattAmpVolt
-                sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower, "V", "A", "KW");
-                
-                break;
-                
-            case 0x1D8: // RearTorque
+        if (connectedToSlave) {
+            switch (message.id) {
+                case 0x132: // HVBattAmpVolt
+                    sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower, "V", "A", "KW");
+                    
+                    break;
+                    
+                case 0x1D8: // RearTorque
 
-                break;
+                    break;
 
-            case 0x264: // charge line
-                sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower, "KW", "KW", "KW");
-                
-                break;
+                case 0x264: // charge line
+                    sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower, "KW", "KW", "KW");
+                    
+                    break;
 
-            case 0x267: // DI_vehicleEstimates
+                case 0x267: // DI_vehicleEstimates
 
-                break;
+                    break;
 
-            case 0x292: // BMS_SOC 
-                sendToDisplay(receiverMacAddress, 0x292, socAVE, battTempPct);
+                case 0x292: // BMS_SOC 
+                    sendToDisplay(receiverMacAddress, 0x292, socAVE, battTempPct);
 
-                break;
+                    break;
 
-            case 0x312: // BMSthermal
-                sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp);
+                case 0x312: // BMSthermal
+                    sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp);
 
-                break;
+                    break;
 
-            case 0x252: // 
-                sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen, "KW", "KW");
+                case 0x252: // 
+                    sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen, "KW", "KW");
 
-                break;
+                    break;
 
-            case 0x352: // BMS_energyStatus
-                sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy);
+                case 0x352: // BMS_energyStatus
+                    sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy);
 
-                break;
+                    break;
 
-            case 0x2E5: // frontinverterpower
-                sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen, "KW", "KW", "KW");
-                
-                break;
+                case 0x2E5: // frontinverterpower
+                    sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen, "KW", "KW", "KW");
+                    
+                    break;
 
-            case 0x266: // rearinverterpower
-                sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen, "KW", "KW", "KW");
-                
-                break;
+                case 0x266: // rearinverterpower
+                    sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen, "KW", "KW", "KW");
+                    
+                    break;
 
-            case 0x376: // frontInverterTemps
-                sendToDisplay(receiverMacAddress, 0x376, frontInverterTemp);
-                
-                break;
+                case 0x376: // frontInverterTemps
+                    sendToDisplay(receiverMacAddress, 0x376, frontInverterTemp);
+                    
+                    break;
 
-            case 0x383: // VCRIGHT_thsStatus
-                sendToDisplay(receiverMacAddress, 0x383, cabin_temp);
-                
-                break;
-    
-            case 0x315: // rearInverterTemps
-                sendToDisplay(receiverMacAddress, 0x315, rearInverterTemp);
+                case 0x383: // VCRIGHT_thsStatus
+                    sendToDisplay(receiverMacAddress, 0x383, cabin_temp);
+                    
+                    break;
+        
+                case 0x315: // rearInverterTemps
+                    sendToDisplay(receiverMacAddress, 0x315, rearInverterTemp);
 
-                break;
+                    break;
 
-            case 0x2B3: // VCRIGHT_thsStatus
-                sendToDisplay(receiverMacAddress, 0x2B3, cabin_humidity);
-                
-                break;
+                case 0x2B3: // VCRIGHT_thsStatus
+                    sendToDisplay(receiverMacAddress, 0x2B3, cabin_humidity);
+                    
+                    break;
 
-            case 0x3B6: // odometer
-                sendToDisplay(receiverMacAddress, 0x3B6, odometer);
-    
-                break; 
+                case 0x3B6: // odometer
+                    sendToDisplay(receiverMacAddress, 0x3B6, odometer);
+        
+                    break; 
 
-            default:
-                
-                break;
+                default:
+                    
+                    break;
+            }
         }
     }
 }

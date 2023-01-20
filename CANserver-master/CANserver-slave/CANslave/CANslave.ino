@@ -1,3 +1,5 @@
+#include <ezButton.h>
+
 //
 //  CANslave.ino
 //
@@ -14,6 +16,7 @@
 #include "bargraph.h"
 #include "button.h" 
 #include "lcd.h"
+#include "sendHelper.h"
 
 #include "payload.h"
 #include "carDataVariables.h"
@@ -39,12 +42,20 @@ unsigned long update_previouscycle = 0;
 static int interval = 1000;
 static int update_interval = 250;
 
+static int previouscycleCheckForMaster = 0;
+static int intervalCheckForMaster = 1000;
+
 static int messages_received_counter = 0;
 static int last_messages_received_counter = 0;
 
-bool connectedToMaster = false;
+unsigned long timeSinceLastAskPingFromMaster = 0;
+long millisAtLastPing = 0;
+
+bool connectedToMaster = true;
 
 double data_rate = 0.0;
+
+ezButton button(36);
 
 void handle_received_data(payload payload) {
 
@@ -166,13 +177,24 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x3E7 : // custom uptime
-            Serial.println(payload.int_value_1);
             masterUpTime = payload.int_value_1;
 
             break;
 
         case 0x3B6 : // odometer
             odometer = payload.double_value_1;
+
+            break;
+
+        case 0x3E6 : // send im up message if we are asked for it
+            Serial.println("Received are you up message");
+            timeSinceLastAskPingFromMaster = 0;
+            millisAtLastPing = millis();
+            connectedToMaster = true;
+            // send response that I am up
+            digitalWrite(LED2, HIGH); // flash led for loop iter
+            
+            sendToDisplay(masterMacAddress, 0x3E6, 1);
 
             break;
     }
@@ -191,13 +213,16 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 }  
 
 void setup() {
+    pinMode(LED2, OUTPUT); // configure blue LED
+    digitalWrite(LED2, HIGH);
+
     setupBarGraphs();
     // displayLoadingAnimationBarGraph();
     
     setupLCD();
     // displayLoadingAnimationLCD();
 
-    setup_buttons();
+    // setup_buttons();
 
     // setupAlphaNum();
     // displayLoadingAnimationAlphaNum();
@@ -206,8 +231,8 @@ void setup() {
  
     // put esp32 in WIFI station mode
     WiFi.mode(WIFI_STA);
-    // Serial.print("Mac Address in Station: ");
-    // Serial.println(WiFi.macAddress());
+    Serial.print("Mac Address in Station: ");
+    Serial.println(WiFi.macAddress());
     
     // init esp now (connection to slave wia wifi)
     if (esp_now_init() != ESP_OK) {
@@ -217,12 +242,32 @@ void setup() {
 
     // create call back (OnDataRecv will run every time a message is received via esp now)
     esp_now_register_recv_cb(OnDataRecv);
+
+    // register peer
+    esp_now_peer_info_t peerInfo;
+    peerInfo.channel = 0;  
+    peerInfo.encrypt = false;
+
+    memcpy(peerInfo.peer_addr, masterMacAddress, 6);
+    // add peer        
+    if (esp_now_add_peer(&peerInfo) != ESP_OK){
+        Serial.println("Failed to add peer");
+        return;
+    }
 }
 
 void loop() {
     // button stuff    
-    page_button_pressed = check_page_button(page_button);
-    if (page_button_pressed) {
+    // page_button_pressed = check_page_button(page_button);
+    // if (page_button_pressed) {
+    //     page = page + 1;
+    //     if (page == max_pages + 1) {
+    //         page = 1; // reset
+    //     } 
+    // }
+    button.loop();
+    if (button.isPressed()) {
+        Serial.println("PRESSED");
         page = page + 1;
         if (page == max_pages + 1) {
             page = 1; // reset
@@ -231,7 +276,12 @@ void loop() {
 
     reset_data_button_pressed = check_reset_button(reset_data_button);
     if (reset_data_button_pressed) {
-        lastNominalEnergyRemaining = nominalEnergyRemaining;
+        if (page == 9) {
+            lastNominalEnergyRemaining = nominalEnergyRemaining;
+        }
+        else if (page == 14) {
+            tripOdometer = odometer;
+        }
     }
 
     // get data rate stats and update after each time interval (1 second)
@@ -244,6 +294,21 @@ void loop() {
         double interval_seconds = (double)interval/1000.00;
         data_rate = messages_received_last_interval_double / interval_seconds;
         last_messages_received_counter = messages_received_counter;
+    }
+
+    timeSinceLastAskPingFromMaster = currentMillis - millisAtLastPing;
+    if (timeSinceLastAskPingFromMaster > intervalCheckForMaster) {
+        
+        if (connectedToMaster) {
+            Serial.println("LOOKS LIKE THE MASTER IS OFFLINE");
+            connectedToMaster = false;   
+            digitalWrite(LED2, LOW); // flash led for loop iter
+
+        }
+
+        if (connectedToMaster == false) {
+            digitalWrite(LED2, LOW); // flash led for loop iter
+        }
     }
 
     // update displays each specified interval
@@ -302,7 +367,10 @@ void loop() {
         if (page == 9) {
             if (true) {
                 energyCounter = lastNominalEnergyRemaining - nominalEnergyRemaining;
-                sendToLCD(0, "Energy Counter", 1, String(energyCounter*-1.0) + " KWh");
+                if (energyCounter < 0) {
+                    energyCounter * -1;
+                }
+                sendToLCD(0, "Energy Counter", 1, String(energyCounter) + " KWh");
             }
         }
 
@@ -327,6 +395,16 @@ void loop() {
         if (page == 13) {
             if (true) {
                 sendToLCD(0, "Odometer", 1, String(odometer));
+            }
+        }
+        if (page == 14) {
+            if (true) {
+                sendToLCD(0, "Trip Distance", 1, String(tripOdometer));
+            }
+        }
+        if (page == 15) {
+            if (true) {
+                sendToLCD(0, "Custom wh/m", 1, String(energyCounter / tripOdometer));
             }
         }
     }
