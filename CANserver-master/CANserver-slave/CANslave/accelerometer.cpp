@@ -19,12 +19,12 @@ void accel_setup() {
 	}
 	Serial.println("LIS3DH found!");
 
-	// lis.setRange(LIS3DH_RANGE_4_G);   // 2, 4, 8 or 16 G!
+	lis.setRange(LIS3DH_RANGE_2_G);   // 2, 4, 8 or 16 G!
 
 	Serial.print("Range = "); Serial.print(2 << lis.getRange());
 	Serial.println("G");
 
-	// lis.setDataRate(LIS3DH_DATARATE_50_HZ);
+	lis.setDataRate(LIS3DH_DATARATE_400_HZ);
 	Serial.print("Data rate set to: ");
 	switch (lis.getDataRate()) {
 		case LIS3DH_DATARATE_1_HZ: Serial.println("1 Hz"); break;
@@ -48,9 +48,9 @@ void accel_get_g_force(float &accel_x, float &accel_y, float &accel_z) {
 	sensors_event_t event;
 	lis.getEvent(&event);
 
-	Serial.println(event.acceleration.x);
-	Serial.println(event.acceleration.y);
-	Serial.println(event.acceleration.z);
+	// Serial.println(event.acceleration.x);
+	// Serial.println(event.acceleration.y);
+	// Serial.println(event.acceleration.z);
 
 	accel_x = (float)event.acceleration.x;
 	accel_y = (float)event.acceleration.y;

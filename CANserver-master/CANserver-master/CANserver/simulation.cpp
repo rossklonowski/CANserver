@@ -119,6 +119,16 @@ void simulate() {
                 rearPower = -50;
             }
 
+            frontPowerLimit = frontPowerLimit + 1;
+            if (frontPowerLimit >= 150) {
+                frontPowerLimit = -50;
+            } 
+
+            rearPowerLimit = rearPowerLimit + 1;
+            if (rearPowerLimit >= 150) {
+                rearPowerLimit = -50;
+            }
+
             sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower);
 
             sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen);

@@ -173,7 +173,7 @@ void loop() {
         if (currentMillis - previouscycle >= interval) {
             previouscycle = currentMillis;
 
-            simulate();
+            // simulate();
 
             masterUpTime = masterUpTime + 1;
             sendToDisplay(receiverMacAddress, 0x3E7, masterUpTime);

@@ -34,8 +34,8 @@ static int battVolts = 0;
 static int battAmps = 0;
 static int battPower = 0;
 
-static int frontPowerLimit = 150;
-static int rearPowerLimit = 150;
+static int frontPowerLimit = 0;
+static int rearPowerLimit = 0;
 
 static double socAVE = 0;
 static double battTempPct = 0;

@@ -21,6 +21,7 @@
 #include "sendHelper.h"
 #include "oled.h"
 #include "accelerometer.h"
+#include "SCD40.h"
 // OLED
 #include <SPI.h>
 #include <Adafruit_SSD1325.h>
@@ -54,7 +55,7 @@ static int refreshCount = 0;
 static bool page_button_pressed = false;
 static bool reset_data_button_pressed = false;
 static int page = 1;
-const int max_pages = 9;
+const int max_pages = 5;
 
 unsigned long previouscycle = 0;
 unsigned long update_previouscycle = 0;
@@ -74,6 +75,11 @@ long millisAtLastPing = 0;
 bool connectedToMaster = true;
 
 double data_rate = 0.0;
+
+// SCD40 Vars
+float temp_f = 0.0;
+float humidity = 0.0;
+float c02 = 0.0;
 
 // button
 ezButton button(36);
@@ -237,8 +243,13 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 }  
 
 void setup() {
+    Serial.begin(115200);
+    delay(200);
+    Serial.println("Starting Setup...");
+    
+    
     pinMode(LED2, OUTPUT); // configure blue LED
-    digitalWrite(LED2, HIGH);
+    digitalWrite(LED2, LOW);
 
     // I2C needed for C02 and Accelerometer
     Wire.begin(I2C_SDA, I2C_SCL);
@@ -256,15 +267,15 @@ void setup() {
 
     setupOLED();
 
+    scd40_setup();
+
     // Accel
     accel_setup();
-    
-    Serial.begin(115200);
  
     // put esp32 in WIFI station mode
     WiFi.mode(WIFI_STA);
-    Serial.print("Mac Address in Station: ");
-    Serial.println(WiFi.macAddress());
+    // Serial.print("Mac Address in Station: ");
+    // Serial.println(WiFi.macAddress());
     
     // init esp now (connection to slave wia wifi)
     if (esp_now_init() != ESP_OK) {
@@ -286,6 +297,8 @@ void setup() {
         Serial.println("Failed to add peer");
         return;
     }
+
+    Serial.println("Finished with setup!");
 }
 
 void loop() {
@@ -336,24 +349,15 @@ void loop() {
         }
     }
 
-
     // update displays each specified interval
     long update_currentMillis = millis();
     if (update_currentMillis - update_previouscycle >= update_interval) {
         update_previouscycle = update_currentMillis;
 
-        // sendToLCD(0, "Batt:" + String(battTempPct) + "%", 1, String(minBattTemp) + "F/" + String(maxBattTemp) + "F");
-        // sendToLCD(0, "Max Regen/Disch", 1, String(maxRegen) + "KW   " + String(maxDischarge) + "KW");
-        // sendToLCD(0, String(frontPower) + "KW " + String(rearPower) + "KW", 1, String(frontInverterTemp) + "KW " + String(rearInverterTemp) + "KW");
-        // sendToLCD(0, "HV Batt " + String(((double)battPower)/1000.00) + "KW", 1, String(battVolts) + "V " + String(battAmps) + "A ");
-        // sendToLCD(0, "SoCavg " + String(socAVE) + "%", 1, "");
-        // sendToLCD(0, "Motor Limits", 1, String(frontPowerLimit) + "KW " + String(rearPowerLimit) + "KW");
-        // sendToLCD(0, "Nominal rem/full", 1, String(nominalEnergyRemaining) + "/" + String(nominalFullPackEnergy) + "KWh");
+        
         // sendToLCD(0, "Up time (Master)", 1, String(masterUpTime) + " seconds");
         // sendToLCD(0, "Speed" + String(UIspeed) + "mph", 1, "Odom " + String(odometer));
         // sendToLCD(0, "Charge Line " + String(chargeLineVoltage) + "V", 1, String(chargeLineCurrent) + "A " + String(chargeLinePower) + "KW");
-        // sendToLCD(0, "mps/ total msgs", 1, String(data_rate) + " " + String(messages_received_counter) + "");
-        // sendToLCD(0, "Cabin:Temp/Humid", 1, String(cabin_temp) + "F " + String(cabin_humidity) + "%");
         // sendToLCD(0, "Custom wh/m", 1, String(energyCounter / tripOdometer));
         // sendToLCD(0, "Trip Distance", 1, String(tripOdometer));
         // sendToLCD(0, "Odometer", 1, String(odometer));
@@ -361,45 +365,74 @@ void loop() {
         // energyCounter = lastNominalEnergyRemaining - nominalEnergyRemaining;
         // sendToLCD(0, "Energy Counter", 1, String(energyCounter) + " KWh");
 
-        // oled_clear();
-        // send_to_oled_buffer(0, "REG/DIS:" + String(maxRegen) + "KW " + String(maxDischarge) + "KW");
-        // send_to_oled_buffer(1, "SOC:" + String(socAVE) + "%" + " PCT:" + String(battTempPct) + "%");
-        // send_to_oled_buffer(2, "NOM:" + String(nominalEnergyRemaining) + "/" + String(nominalFullPackEnergy) + "KWh");
-        // send_to_oled_buffer(3, "BATT MIN:" + String(minBattTemp) + " MAX:" + String(maxBattTemp) + "F");
-        // send_to_oled_buffer(4, "" + String(((double)battPower)/1000.00) + "KW " + String(battVolts) + "V " + String(battAmps) + "A");
-        // oled_update();
+        String unit_space = " ";
 
-        // oled_clear();
-        // send_to_oled_buffer(0, "Max Regen  " + String(maxRegen) + "KW");
-        // send_to_oled_buffer(1, "Max Disch  " + String(maxDischarge) + "KW");
-        // send_to_oled_buffer(2, "SOC        " + String(socAVE) + "%");
-        // send_to_oled_buffer(3, "NomEnergy  " + String(nominalEnergyRemaining) + "KWh");
-        // send_to_oled_buffer(4, "NomFull    " + String(nominalFullPackEnergy) + "KWh");
-        // send_to_oled_buffer(5, "Batt Min   " + String(minBattTemp) + "F");
-        // send_to_oled_buffer(6, "Batt Max   " + String(maxBattTemp) + "F");
-        // send_to_oled_buffer(7, "Temp %     " + String(battTempPct) + "%");
-        // oled_update();
+        if (page  == 1) {
+            oled_clear();
+            send_to_oled_buffer(0, "HV Batt:");
+            send_to_oled_buffer(1, String(((double)battPower)/1000.00) + "KW " + String(battVolts) + "V " + String(battAmps) + "A");
+            send_to_oled_buffer(2, "Front Power:  " + String(frontPower) + unit_space + "KW");
+            send_to_oled_buffer(3, "Front Limit:  " + String(frontPowerLimit) + unit_space + "KW");
+            send_to_oled_buffer(4, "Rear Power:   " + String(rearPower) + unit_space + "KW");
+            send_to_oled_buffer(5, "Rear Limit:   " + String(rearPowerLimit) + unit_space + "KW");
+            oled_update();
+        }
 
-        // oled_clear();
-        // float accel_x = 0.0;
-        // float accel_y = 0.0;
-        // float accel_z = 0.0;
-        // accel_get_g_force(accel_x, accel_y, accel_z);
-        // float g_x = accel_x / 9.81;
-        // float g_y = accel_x / 9.81;
-        // float g_z = accel_x / 9.81;
-        // send_to_oled_buffer(0, "Accel X: " + String(accel_x) + "m/s^2");
-        // send_to_oled_buffer(1, "G's   X: " + String(g_x) + "g(s)");
-        // send_to_oled_buffer(2, "Accel Y: " + String(accel_y) + "m/s^2");
-        // send_to_oled_buffer(3, "G's   Y: " + String(g_y) + "g(s)");
-        // send_to_oled_buffer(4, "Accel Z: " + String(accel_z) + "m/s^2");
-        // send_to_oled_buffer(5, "G's   Z: " + String(g_z) + "g(s)");
-        // oled_update();
+        if (page  == 2) {
+            oled_clear();
+            send_to_oled_buffer(0, "Max Regen  " + String(maxRegen) + unit_space + "KW");
+            send_to_oled_buffer(1, "Max Disch  " + String(maxDischarge) + unit_space + "KW");
+            send_to_oled_buffer(2, "SOC        " + String(socAVE) + unit_space + "%");
+            send_to_oled_buffer(3, "NomEnergy  " + String(nominalEnergyRemaining) + unit_space + "KWh");
+            send_to_oled_buffer(4, "NomFull    " + String(nominalFullPackEnergy) + unit_space + "KWh");
+            send_to_oled_buffer(5, "Batt Min   " + String(minBattTemp) + unit_space + "F");
+            send_to_oled_buffer(6, "Batt Max   " + String(maxBattTemp) + unit_space + "F");
+            send_to_oled_buffer(7, "Temp %     " + String(battTempPct) + unit_space + "%");
+            oled_update();
+        }
 
-        // send_to_oled_buffer(7, "" + String(((double)battPower)/1000.00) + "KW " + String(battVolts) + "V " + String(battAmps) + "A");
-        // send_to_oled_buffer(5, "FR:" + String(frontPower) + "KW " + String(rearPower) + "KW");
-        // send_to_oled_buffer(6, "  :" + String(frontPowerLimit) + "KW " + String(rearPowerLimit) + "KW");
-        // send_to_oled_buffer(7, "MPS/TOT:" + String(data_rate) + " " + String(messages_received_counter) + "");
+        if (page  == 3) {
+            oled_clear();
+            float accel_x = 0.0;
+            float accel_y = 0.0;
+            float accel_z = 0.0;
+            accel_get_g_force(accel_x, accel_y, accel_z);
+            float g_x = accel_x / 9.81;
+            float g_y = accel_x / 9.81;
+            float g_z = accel_x / 9.81;
+            
+            String sign1 = (accel_x >= 0) ? "+" : "";
+            String sign2 = (g_x >= 0) ? "+" : "";
+            String sign3 = (accel_y >= 0) ? "+" : "";
+            String sign4 = (g_y >= 0) ? "+" : "";
+            String sign5 = (accel_z >= 0) ? "+" : "";
+            String sign6 = (g_z >= 0) ? "+" : "";
 
+            send_to_oled_buffer(0, "Accel X " + sign1 + String(accel_x) + unit_space + "m/s^2");
+            send_to_oled_buffer(1, "g's   X " + sign2 + String(g_x) + unit_space + "g(s)");
+            send_to_oled_buffer(2, "Accel Y " + sign3 + String(accel_y) + unit_space + "m/s^2");
+            send_to_oled_buffer(3, "g's   Y " + sign4 + String(g_y) + unit_space + "g(s)");
+            send_to_oled_buffer(4, "Accel Z " + sign5 + String(accel_z) + unit_space + "m/s^2");
+            send_to_oled_buffer(5, "g's   Z " + sign6 + String(g_z) + unit_space + "g(s)");
+            oled_update();
+        }
+
+        if (page  == 4) {
+            if (scd40_data_ready()) {
+                oled_clear();
+                scd40_get_data(c02, temp_f, humidity);
+                send_to_oled_buffer(0, "Temp     " + String(temp_f) + unit_space + "F");
+                send_to_oled_buffer(1, "Humidity " + String(humidity) + unit_space + "%");
+                send_to_oled_buffer(2, "C02      " + String(c02) + unit_space + "ppm");
+                oled_update();
+            }
+        }
+
+        if (page  == 5) {
+            oled_clear();
+            send_to_oled_buffer(0, "Msg/s  " + String(data_rate) + unit_space + "mps");
+            send_to_oled_buffer(1, "Total  " + String(messages_received_counter) + unit_space + "Msgs");
+            oled_update();
+        }
     }
 }
