@@ -18,13 +18,13 @@ static double avgBattTemp = 0.0;
 static int cabin_humidity = 0;
 static int cabin_temp = 0;
 
-static int maxRegen = 100;
+static int maxRegen = 0;
 static int maxDischarge = 0;
 
 static int frontPower = 0;
 static int rearPower = 0;
-static int frontPowerLimit = 150;
-static int rearPowerLimit = 150;
+static int frontPowerLimit = 0;
+static int rearPowerLimit = 0;
 
 static int battVolts = 0;
 static int battAmps = 0;

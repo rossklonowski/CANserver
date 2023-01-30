@@ -2,8 +2,6 @@
 //  button.cpp
 //  To be used with CANserver created by Josh Wardell
 //
-//  Created by Ross Klonowski on September 3 2021.
-//
 
 #include <Adafruit_GFX.h>
 #include "Adafruit_LEDBackpack.h"

@@ -16,10 +16,10 @@ int lastSwitchValue1 = 0;
 int lastSwitchValue2 = 0;
 
 void setup_buttons() {
-    analogSetCycles(64);
+    // analogSetCycles(64);
     pinMode(page_button, INPUT);
     delay(100);
-    analogSetCycles(64);
+    // analogSetCycles(64);
     pinMode(reset_data_button, INPUT);
 }
 

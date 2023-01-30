@@ -1,8 +1,6 @@
 //
 //  bargraph.h
 //
-//  Created by Ross Klonowski on January 16 2021.
-//
 
 #ifndef bargraph_h
 #define bargraph_h

@@ -119,11 +119,11 @@ void simulate() {
                 rearPower = -50;
             }
 
-            sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower, "V", "A", "KW");
+            sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower);
 
-            sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen, "KW", "KW", "KW");
+            sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen);
 
-            sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen, "KW", "KW", "KW");
+            sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen);
             
             sendToDisplay(receiverMacAddress, 0x292, socAVE, battTempPct);
 
@@ -137,9 +137,9 @@ void simulate() {
 
             sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy);
 
-            sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen, "KW", "KW");
+            sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen);
 
-            sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower, "KW", "KW", "KW");
+            sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower);
 
             sendToDisplay(receiverMacAddress, 0x3B6, odometer);
 

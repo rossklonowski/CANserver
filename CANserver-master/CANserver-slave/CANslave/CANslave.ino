@@ -12,11 +12,18 @@
 #include "Adafruit_LEDBackpack.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+// display stuff
 #include <LiquidCrystal.h>
 #include "bargraph.h"
 #include "button.h" 
 #include "lcd.h"
 #include "sendHelper.h"
+#include "oled.h"
+#include "accelerometer.h"
+// OLED
+#include <SPI.h>
+#include <Adafruit_SSD1325.h>
 
 #include "payload.h"
 #include "carDataVariables.h"
@@ -26,6 +33,19 @@
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
 
+// Accel
+#define I2C_SDA 33
+#define I2C_SCL 32
+
+// OLED
+// If using software SPI, define CLK and MOSI
+// #define OLED_CLK 18
+// #define OLED_MOSI 23
+
+// #define OLED_CS 21
+// #define OLED_RESET 17
+// #define OLED_DC 16
+
 static bool isIdle = true;
 static bool isFirstRecv = true;
 static bool debug = false;
@@ -34,16 +54,16 @@ static int refreshCount = 0;
 static bool page_button_pressed = false;
 static bool reset_data_button_pressed = false;
 static int page = 1;
-const int max_pages = 13;
+const int max_pages = 9;
 
 unsigned long previouscycle = 0;
 unsigned long update_previouscycle = 0;
 
 static int interval = 1000;
-static int update_interval = 250;
+static int update_interval = 100;
 
 static int previouscycleCheckForMaster = 0;
-static int intervalCheckForMaster = 1000;
+static int intervalCheckForMaster = 5000;
 
 static int messages_received_counter = 0;
 static int last_messages_received_counter = 0;
@@ -55,7 +75,11 @@ bool connectedToMaster = true;
 
 double data_rate = 0.0;
 
+// button
 ezButton button(36);
+
+// OLED
+// Adafruit_SSD1325 oled(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
 void handle_received_data(payload payload) {
 
@@ -187,7 +211,7 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x3E6 : // send im up message if we are asked for it
-            Serial.println("Received are you up message");
+            // Serial.println("Received are you up message");
             timeSinceLastAskPingFromMaster = 0;
             millisAtLastPing = millis();
             connectedToMaster = true;
@@ -216,16 +240,24 @@ void setup() {
     pinMode(LED2, OUTPUT); // configure blue LED
     digitalWrite(LED2, HIGH);
 
-    setupBarGraphs();
+    // I2C needed for C02 and Accelerometer
+    Wire.begin(I2C_SDA, I2C_SCL);
+
+    // setupBarGraphs();
     // displayLoadingAnimationBarGraph();
     
-    setupLCD();
+    // setupLCD();
     // displayLoadingAnimationLCD();
 
-    // setup_buttons();
+    setup_buttons();
 
     // setupAlphaNum();
     // displayLoadingAnimationAlphaNum();
+
+    setupOLED();
+
+    // Accel
+    accel_setup();
     
     Serial.begin(115200);
  
@@ -258,13 +290,6 @@ void setup() {
 
 void loop() {
     // button stuff    
-    // page_button_pressed = check_page_button(page_button);
-    // if (page_button_pressed) {
-    //     page = page + 1;
-    //     if (page == max_pages + 1) {
-    //         page = 1; // reset
-    //     } 
-    // }
     button.loop();
     if (button.isPressed()) {
         Serial.println("PRESSED");
@@ -274,15 +299,15 @@ void loop() {
         } 
     }
 
-    reset_data_button_pressed = check_reset_button(reset_data_button);
-    if (reset_data_button_pressed) {
-        if (page == 9) {
-            lastNominalEnergyRemaining = nominalEnergyRemaining;
-        }
-        else if (page == 14) {
-            tripOdometer = odometer;
-        }
-    }
+    // reset_data_button_pressed = check_reset_button(reset_data_button);
+    // if (reset_data_button_pressed) {
+    //     if (page == 9) {
+    //         lastNominalEnergyRemaining = nominalEnergyRemaining;
+    //     }
+    //     // else if (page == 14) {
+    //     //     // tripOdometer = odometer;
+    //     // }
+    // }
 
     // get data rate stats and update after each time interval (1 second)
     long currentMillis = millis();
@@ -300,112 +325,81 @@ void loop() {
     if (timeSinceLastAskPingFromMaster > intervalCheckForMaster) {
         
         if (connectedToMaster) {
-            Serial.println("LOOKS LIKE THE MASTER IS OFFLINE");
+            Serial.println("Master is offline");
             connectedToMaster = false;   
-            digitalWrite(LED2, LOW); // flash led for loop iter
-
+            digitalWrite(LED2, LOW);
         }
 
         if (connectedToMaster == false) {
-            digitalWrite(LED2, LOW); // flash led for loop iter
+            digitalWrite(LED2, LOW);
+            // write_oled(0, 7, "</>");
         }
     }
+
 
     // update displays each specified interval
     long update_currentMillis = millis();
     if (update_currentMillis - update_previouscycle >= update_interval) {
         update_previouscycle = update_currentMillis;
-            
-        if (page == 1) {
-            if (true) {
-                sendToLCD(0, "Batt:" + String(battTempPct) + "%", 1, String(minBattTemp) + "F/" + String(maxBattTemp) + "F");
-            }
-        }
 
-        if (page == 2) {
-            if (true) {
-                sendToLCD(0, "Max Regen/Disch", 1, String(maxRegen) + "KW   " + String(maxDischarge) + "KW");
-            }
-        }
+        // sendToLCD(0, "Batt:" + String(battTempPct) + "%", 1, String(minBattTemp) + "F/" + String(maxBattTemp) + "F");
+        // sendToLCD(0, "Max Regen/Disch", 1, String(maxRegen) + "KW   " + String(maxDischarge) + "KW");
+        // sendToLCD(0, String(frontPower) + "KW " + String(rearPower) + "KW", 1, String(frontInverterTemp) + "KW " + String(rearInverterTemp) + "KW");
+        // sendToLCD(0, "HV Batt " + String(((double)battPower)/1000.00) + "KW", 1, String(battVolts) + "V " + String(battAmps) + "A ");
+        // sendToLCD(0, "SoCavg " + String(socAVE) + "%", 1, "");
+        // sendToLCD(0, "Motor Limits", 1, String(frontPowerLimit) + "KW " + String(rearPowerLimit) + "KW");
+        // sendToLCD(0, "Nominal rem/full", 1, String(nominalEnergyRemaining) + "/" + String(nominalFullPackEnergy) + "KWh");
+        // sendToLCD(0, "Up time (Master)", 1, String(masterUpTime) + " seconds");
+        // sendToLCD(0, "Speed" + String(UIspeed) + "mph", 1, "Odom " + String(odometer));
+        // sendToLCD(0, "Charge Line " + String(chargeLineVoltage) + "V", 1, String(chargeLineCurrent) + "A " + String(chargeLinePower) + "KW");
+        // sendToLCD(0, "mps/ total msgs", 1, String(data_rate) + " " + String(messages_received_counter) + "");
+        // sendToLCD(0, "Cabin:Temp/Humid", 1, String(cabin_temp) + "F " + String(cabin_humidity) + "%");
+        // sendToLCD(0, "Custom wh/m", 1, String(energyCounter / tripOdometer));
+        // sendToLCD(0, "Trip Distance", 1, String(tripOdometer));
+        // sendToLCD(0, "Odometer", 1, String(odometer));
 
-        if (page == 3) {
-            if (true) {
-                sendToLCD(0, "FR Motor Power", 1, String(frontPower) + "KW     " + String(rearPower) + "KW");
-            }
-        }
+        // energyCounter = lastNominalEnergyRemaining - nominalEnergyRemaining;
+        // sendToLCD(0, "Energy Counter", 1, String(energyCounter) + " KWh");
 
-        if (page == 4) {
-            if (true) {
-                sendToLCD(0, "HV Battery", 1, String(battVolts) + "V " + String(battAmps) + "A " + String(battPower) + "KW");
-            }
-        }
+        // oled_clear();
+        // send_to_oled_buffer(0, "REG/DIS:" + String(maxRegen) + "KW " + String(maxDischarge) + "KW");
+        // send_to_oled_buffer(1, "SOC:" + String(socAVE) + "%" + " PCT:" + String(battTempPct) + "%");
+        // send_to_oled_buffer(2, "NOM:" + String(nominalEnergyRemaining) + "/" + String(nominalFullPackEnergy) + "KWh");
+        // send_to_oled_buffer(3, "BATT MIN:" + String(minBattTemp) + " MAX:" + String(maxBattTemp) + "F");
+        // send_to_oled_buffer(4, "" + String(((double)battPower)/1000.00) + "KW " + String(battVolts) + "V " + String(battAmps) + "A");
+        // oled_update();
 
-        if (page == 5) {
-            if (true) {
-                sendToLCD(0, "SoCavg", 1, String(socAVE) + "%");
-            }
-        }
+        // oled_clear();
+        // send_to_oled_buffer(0, "Max Regen  " + String(maxRegen) + "KW");
+        // send_to_oled_buffer(1, "Max Disch  " + String(maxDischarge) + "KW");
+        // send_to_oled_buffer(2, "SOC        " + String(socAVE) + "%");
+        // send_to_oled_buffer(3, "NomEnergy  " + String(nominalEnergyRemaining) + "KWh");
+        // send_to_oled_buffer(4, "NomFull    " + String(nominalFullPackEnergy) + "KWh");
+        // send_to_oled_buffer(5, "Batt Min   " + String(minBattTemp) + "F");
+        // send_to_oled_buffer(6, "Batt Max   " + String(maxBattTemp) + "F");
+        // send_to_oled_buffer(7, "Temp %     " + String(battTempPct) + "%");
+        // oled_update();
 
-        if (page == 6) {
-            if (true) {
-                sendToLCD(0, "Inverter F/R", 1, String(frontInverterTemp) + "F " + String(rearInverterTemp) + "F");
-            }
-        }
+        // oled_clear();
+        // float accel_x = 0.0;
+        // float accel_y = 0.0;
+        // float accel_z = 0.0;
+        // accel_get_g_force(accel_x, accel_y, accel_z);
+        // float g_x = accel_x / 9.81;
+        // float g_y = accel_x / 9.81;
+        // float g_z = accel_x / 9.81;
+        // send_to_oled_buffer(0, "Accel X: " + String(accel_x) + "m/s^2");
+        // send_to_oled_buffer(1, "G's   X: " + String(g_x) + "g(s)");
+        // send_to_oled_buffer(2, "Accel Y: " + String(accel_y) + "m/s^2");
+        // send_to_oled_buffer(3, "G's   Y: " + String(g_y) + "g(s)");
+        // send_to_oled_buffer(4, "Accel Z: " + String(accel_z) + "m/s^2");
+        // send_to_oled_buffer(5, "G's   Z: " + String(g_z) + "g(s)");
+        // oled_update();
 
-        if (page == 7) {
-            if (true) {
-                sendToLCD(0, "Cabin:Temp/Humid", 1, String(cabin_temp) + "F " + String(cabin_humidity) + "%");
-            }
-        }
+        // send_to_oled_buffer(7, "" + String(((double)battPower)/1000.00) + "KW " + String(battVolts) + "V " + String(battAmps) + "A");
+        // send_to_oled_buffer(5, "FR:" + String(frontPower) + "KW " + String(rearPower) + "KW");
+        // send_to_oled_buffer(6, "  :" + String(frontPowerLimit) + "KW " + String(rearPowerLimit) + "KW");
+        // send_to_oled_buffer(7, "MPS/TOT:" + String(data_rate) + " " + String(messages_received_counter) + "");
 
-        if (page == 8) {
-            if (true) {
-                sendToLCD(0, "Nominal rem/full", 1, String(nominalEnergyRemaining) + "/" + String(nominalFullPackEnergy) + "KWh");
-            }
-        }
-
-        if (page == 9) {
-            if (true) {
-                energyCounter = lastNominalEnergyRemaining - nominalEnergyRemaining;
-                if (energyCounter < 0) {
-                    energyCounter * -1;
-                }
-                sendToLCD(0, "Energy Counter", 1, String(energyCounter) + " KWh");
-            }
-        }
-
-        if (page == 10) {
-            if (true) {
-                sendToLCD(0, "mps/ total msgs", 1, String(data_rate) + " " + String(messages_received_counter) + "");
-            }
-        }
-
-        if (page == 11) {
-            if (true) {
-                sendToLCD(0, "Up time (Master)", 1, String(masterUpTime) + " seconds");
-            }
-        }
-
-        if (page == 12) {
-            if (true) {
-                sendToLCD(0, "Connected", 1, String(connectedToMaster));
-            }
-        }
-
-        if (page == 13) {
-            if (true) {
-                sendToLCD(0, "Odometer", 1, String(odometer));
-            }
-        }
-        if (page == 14) {
-            if (true) {
-                sendToLCD(0, "Trip Distance", 1, String(tripOdometer));
-            }
-        }
-        if (page == 15) {
-            if (true) {
-                sendToLCD(0, "Custom wh/m", 1, String(energyCounter / tripOdometer));
-            }
-        }
     }
 }

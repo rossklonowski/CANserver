@@ -43,7 +43,7 @@ static bool debug = false;
 static bool serial_switch = false;
 static int debug_counter = 0;
 
-static int interval = 1000;
+static int interval = 100;
 unsigned long previouscycle = 0;
 
 static int intervalReceiver = 1000;
@@ -56,7 +56,6 @@ long timeSinceLastReceiverPing = 0;
 long millisAtLastPing = 0;
 
 bool connectedToSlave = true;
-
 
 generalCANSignalAnalysis analyzeMessage; // initialize library
 
@@ -116,7 +115,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void setup(){
 
     pinMode(LED2, OUTPUT); // configure blue LED
-    digitalWrite(LED2, HIGH);
+    digitalWrite(LED2, LOW);
 
     Serial.begin(115200);
     delay(100);
@@ -174,7 +173,7 @@ void loop() {
         if (currentMillis - previouscycle >= interval) {
             previouscycle = currentMillis;
 
-            // simulate();
+            simulate();
 
             masterUpTime = masterUpTime + 1;
             sendToDisplay(receiverMacAddress, 0x3E7, masterUpTime);
@@ -247,11 +246,11 @@ void loop() {
                 break;
 
             case 0x264:
-                if (message.length == 8) {
+                // if (message.length == 8) {
                     chargeLineVoltage = analyzeMessage.getSignal(message.data.uint64, 0, 14, .0333, 0, false, littleEndian);
                     chargeLineCurrent = analyzeMessage.getSignal(message.data.uint64, 14, 9, 0.1, 0, false, littleEndian);
                     chargeLinePower = analyzeMessage.getSignal(message.data.uint64, 24, 8, 0.1, 0, false, littleEndian);
-                }
+                // }
                 break;
 
             case 0x292: // BMS_SOC 
@@ -348,9 +347,9 @@ void loop() {
                 break;
 
             case 0x3B6: // odometer
-                if (message.length == 8) {
+                // if (message.length == 4) {
                     odometer = analyzeMessage.getSignal(message.data.uint64, 0, 32, 0.001, 0, false, littleEndian);
-                }
+                // }
                 break;
     
             default:
@@ -360,7 +359,7 @@ void loop() {
         if (connectedToSlave) {
             switch (message.id) {
                 case 0x132: // HVBattAmpVolt
-                    sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower, "V", "A", "KW");
+                    sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPowerW);
                     
                     break;
                     
@@ -369,7 +368,7 @@ void loop() {
                     break;
 
                 case 0x264: // charge line
-                    sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower, "KW", "KW", "KW");
+                    sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower);
                     
                     break;
 
@@ -388,7 +387,7 @@ void loop() {
                     break;
 
                 case 0x252: // 
-                    sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen, "KW", "KW");
+                    sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen);
 
                     break;
 
@@ -398,12 +397,12 @@ void loop() {
                     break;
 
                 case 0x2E5: // frontinverterpower
-                    sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen, "KW", "KW", "KW");
+                    sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen);
                     
                     break;
 
                 case 0x266: // rearinverterpower
-                    sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen, "KW", "KW", "KW");
+                    sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen);
                     
                     break;
 
