@@ -16,52 +16,48 @@ void simulate() {
 
             socAVE = socAVE + .1;
             if (socAVE > 80) {
-                socAVE = 12;
+                socAVE = 0;
             }
 
             battTempPct = battTempPct + 1;
             if (battTempPct > 80) {
-                battTempPct = 12;
+                battTempPct = 0;
             }
 
             masterUpTime = masterUpTime + 1;
 
             nominalFullPackEnergy = nominalFullPackEnergy + 1;
             if (nominalFullPackEnergy > 80) {
-                nominalFullPackEnergy = 12;
+                nominalFullPackEnergy = 0;
             }
 
             frontInverterTemp = frontInverterTemp + 0.1;
             if (frontInverterTemp > 80) {
-                frontInverterTemp = 12;
+                frontInverterTemp = 0;
             }
 
             rearInverterTemp = rearInverterTemp + 0.1;
             if (rearInverterTemp > 80) {
-                rearInverterTemp = 12;
+                rearInverterTemp = 0;
             }
 
             cabin_humidity = cabin_humidity + 1;
             if (cabin_humidity > 80) {
-                cabin_humidity = 12;
+                cabin_humidity = 0;
             }
 
             cabin_temp = cabin_temp + 1;
             if (cabin_temp > 80) {
-                cabin_temp = 12;
+                cabin_temp = -32;
             }
-            if (cabin_temp == 0) {
-                cabin_temp == 1;
-            }
-
             maxBattTemp = maxBattTemp + 0.1;
             if (maxBattTemp > 80) {
-                maxBattTemp = 12;
+                maxBattTemp = -32;
             }
 
             minBattTemp = minBattTemp + 0.1;
             if (minBattTemp > 80) {
-                minBattTemp = 12;
+                minBattTemp = -32;
             }
 
             nominalEnergyRemaining = nominalEnergyRemaining + 0.1;
@@ -69,44 +65,42 @@ void simulate() {
                 nominalEnergyRemaining = 4;
             }
 
-            battVolts = battVolts + 1;
-            if (battVolts == 400) {
-                battVolts = 300;
-            }
+            battVolts = 350.00;
+            // if (battVolts == 400) {
+            //     battVolts = 300;
+            // }
 
-            battAmps = battAmps + 1;
-            if (battAmps == 150) {
-                battAmps = -99;
-            }
+            battAmps = 171.428;
+            // battAmps = battAmps + 1;
+            // if (battAmps > 150) {
+            //     battAmps = -100;
+            // }
 
-            battPower = battPower + 1;
-            if (battPower == 300) {
-                battPower = -50;
-            }
+            battPower = battAmps * battVolts;
 
             chargeLineCurrent = chargeLineCurrent + 1;
             if (chargeLineCurrent == 99) {
-                chargeLineCurrent = 50;
+                chargeLineCurrent = -50;
             }
             
             chargeLinePower = chargeLinePower + 1;
             if (chargeLinePower == 99) {
-                chargeLinePower = 50;
+                chargeLinePower = -50;
             }
             
             chargeLineVoltage = chargeLineVoltage + 1;
             if (chargeLineVoltage == 99) {
-                chargeLineVoltage = 50;
+                chargeLineVoltage = -50;
             }
 
             maxRegen = maxRegen + 1;
             if (maxRegen == 99) {
-                maxRegen = 50;
+                maxRegen = 0;
             }
 
             maxDischarge = maxDischarge + 1;
             if (maxDischarge == 99) {
-                maxDischarge = 50;
+                maxDischarge = 0;
             }
 
             frontPower = frontPower + 1;
@@ -130,31 +124,16 @@ void simulate() {
             }
 
             sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower);
-
             sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen);
-
             sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen);
-            
             sendToDisplay(receiverMacAddress, 0x292, socAVE, battTempPct);
-
             sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp);
-            
             sendToDisplay(receiverMacAddress, 0x383, cabin_temp);
-
             sendToDisplay(receiverMacAddress, 0x315, rearInverterTemp);
-
             sendToDisplay(receiverMacAddress, 0x376, frontInverterTemp);
-
             sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy);
-
             sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen);
-
             sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower);
-
             sendToDisplay(receiverMacAddress, 0x3B6, odometer);
-
             sendToDisplay(receiverMacAddress, 0x2B3, cabin_humidity);
-
-
-            // sendToDisplay(receiverMacAddress, 0x3E7, masterUpTime);
 }

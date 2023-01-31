@@ -26,10 +26,10 @@ static int rearPower = 0;
 static int frontPowerLimit = 0;
 static int rearPowerLimit = 0;
 
-static int battVolts = 0;
-static int battAmps = 0;
-static int battPower = 0;
-static int battPowerW = 0;
+static double battVolts = 0;
+static double battAmps = 0;
+static double battPower = 0;
+static double battPowerW = 0;
 
 static int frontTorque = 0;
 static int rearTorque = 0;

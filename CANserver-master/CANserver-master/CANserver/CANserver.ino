@@ -53,7 +53,7 @@ static int intervalCheckForImUp = 10000;
 unsigned long previouscycleCheckForImUp = 0;
 
 long timeSinceLastReceiverPing = 0;
-long millisAtLastPing = 0;
+unsigned long millisAtLastPing = 0;
 
 bool connectedToSlave = true;
 
@@ -71,7 +71,7 @@ void handle_received_data(payload payload) {
             // sendToDisplay(masterMacAddress, 0x3E6, 1);
             // slave is UP
             // reset the time since we last talked to slave    
-            digitalWrite(LED2, HIGH); // flash led for loop iter
+            digitalWrite(LED2, LOW); // flash led for loop iter
 
             timeSinceLastReceiverPing = 0;
             millisAtLastPing = millis();
@@ -115,7 +115,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void setup(){
 
     pinMode(LED2, OUTPUT); // configure blue LED
-    digitalWrite(LED2, LOW);
+    digitalWrite(LED2, HIGH);
 
     Serial.begin(115200);
     delay(100);
@@ -164,17 +164,15 @@ void loop() {
         }
 
         if (connectedToSlave == false) {
-            digitalWrite(LED2, LOW); // flash led for loop iter
+            digitalWrite(LED2, HIGH);
         }
     }
 
     if (Serial) {
-        long currentMillis = millis();
+        unsigned long currentMillis = millis();
         if (currentMillis - previouscycle >= interval) {
             previouscycle = currentMillis;
-
             // simulate();
-
             masterUpTime = masterUpTime + 1;
             sendToDisplay(receiverMacAddress, 0x3E7, masterUpTime);
         }
@@ -185,9 +183,7 @@ void loop() {
         if (currentMillis - previouscycleReceiver >= intervalReceiver) {
             previouscycleReceiver = currentMillis;
             Serial.println("Sending are you up message");
-
             // digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
-
             sendToDisplay(receiverMacAddress, 0x3E6, 1);
         }
     }
@@ -196,7 +192,6 @@ void loop() {
     CAN_FRAME message;
 
     if (CAN0.read(message)) {
-
         if (debug) {
             Serial.print("message ID(hex): ");
             Serial.print(message.id, HEX);  ///debug display RX message

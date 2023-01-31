@@ -50,6 +50,11 @@ static int chargeLinePower = 0;
 static double odometer = 0;
 static double tripOdometer = 0;
 
+// custom stuff
 static double energyCounter = 0.0;
-
 static int masterUpTime = 0;
+static float max_g_vector = 0;
+static float max_accel_vector = 0;
+static float accel_offset = 0.0;
+static float accel_vector = 0.0;
+static float sampled_energy_counter = 0.0;

@@ -4,13 +4,14 @@
 //  Created by Ross Klonowski on January 16 2021.
 //
 
+#include <ezButton.h>
+
+
 #ifndef button_h
 #define button_h
 
-void setup_buttons();
+// void setup_buttons();
 
-bool check_page_button(const int);
-
-bool check_reset_button(const int);
+// bool was_button_pressed(String);
 
 #endif /* button_h */

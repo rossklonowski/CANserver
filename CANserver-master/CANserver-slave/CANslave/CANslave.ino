@@ -1,5 +1,3 @@
-#include <ezButton.h>
-
 //
 //  CANslave.ino
 //
@@ -13,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <ezButton.h>
 // display stuff
 #include <LiquidCrystal.h>
 #include "bargraph.h"
@@ -34,28 +33,18 @@
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
 
-// Accel
-#define I2C_SDA 33
-#define I2C_SCL 32
-
-// OLED
-// If using software SPI, define CLK and MOSI
-// #define OLED_CLK 18
-// #define OLED_MOSI 23
-
-// #define OLED_CS 21
-// #define OLED_RESET 17
-// #define OLED_DC 16
+ezButton page_button(page_button_pin);
+ezButton invert_color_button(invert_color_button_pin);
+ezButton reset_button(reset_data_button_pin);
 
 static bool isIdle = true;
 static bool isFirstRecv = true;
 static bool debug = false;
 static int lastCount = 0;
 static int refreshCount = 0;
-static bool page_button_pressed = false;
-static bool reset_data_button_pressed = false;
+
 static int page = 1;
-const int max_pages = 5;
+const int max_pages = 9;
 
 unsigned long previouscycle = 0;
 unsigned long update_previouscycle = 0;
@@ -70,24 +59,36 @@ static int messages_received_counter = 0;
 static int last_messages_received_counter = 0;
 
 unsigned long timeSinceLastAskPingFromMaster = 0;
-long millisAtLastPing = 0;
+unsigned long  millisAtLastPing = 0;
 
 bool connectedToMaster = true;
 
 double data_rate = 0.0;
+
+unsigned long energy_timer = 0.0;
+unsigned long energy_last_timer = 0.0;
 
 // SCD40 Vars
 float temp_f = 0.0;
 float humidity = 0.0;
 float c02 = 0.0;
 
-// button
-ezButton button(36);
+bool was_button_pressed(String button) {
+    bool pressed = false;
+    if (button == "reset") {
+        pressed = reset_button.isPressed();
+    } else if (button == "invert") {
+        pressed = invert_color_button.isPressed();
+    } else if (button == "page") {
+        pressed = page_button.isPressed();
+    }
+    return pressed;
+}
 
-// OLED
-// Adafruit_SSD1325 oled(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
 void handle_received_data(payload payload) {
+
+    // Serial.println("Received can id: " + String(payload.can_id));
 
     switch (payload.can_id) {
         case 0x312 : // batt temp
@@ -108,10 +109,27 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x132 : // HVBattAmpVolt
-            battVolts = payload.int_value_1;
-            battAmps = payload.int_value_2;
-            battPower = payload.int_value_3;
-            
+            battVolts = payload.double_value_1;
+            battAmps = payload.double_value_2;
+            battPower = payload.double_value_3;
+
+            Serial.println("Volts: " + String(battVolts));
+            Serial.println("Power: " + String(battPower));
+            Serial.println("Amps:  " + String(battAmps));
+
+            if (energy_last_timer == 0.0) {
+                // skip but set it
+                energy_last_timer = millis();
+            } else {
+                float time_since_last_timestamp = millis() - energy_last_timer;
+                float time_since_last_timestamp_hrs = time_since_last_timestamp / (3.6*(1000000));
+                float energy_over_last_interval = ((battAmps * battVolts)/1000) * time_since_last_timestamp_hrs;
+                
+                sampled_energy_counter = sampled_energy_counter + energy_over_last_interval;
+            }
+
+            energy_last_timer = millis();
+
             break;
 
         case 0x001 : // 0-60 time
@@ -222,7 +240,7 @@ void handle_received_data(payload payload) {
             millisAtLastPing = millis();
             connectedToMaster = true;
             // send response that I am up
-            digitalWrite(LED2, HIGH); // flash led for loop iter
+            digitalWrite(LED2, LOW);
             
             sendToDisplay(masterMacAddress, 0x3E6, 1);
 
@@ -247,9 +265,8 @@ void setup() {
     delay(200);
     Serial.println("Starting Setup...");
     
-    
     pinMode(LED2, OUTPUT); // configure blue LED
-    digitalWrite(LED2, LOW);
+    digitalWrite(LED2, HIGH);
 
     // I2C needed for C02 and Accelerometer
     Wire.begin(I2C_SDA, I2C_SCL);
@@ -257,14 +274,6 @@ void setup() {
     // setupBarGraphs();
     // displayLoadingAnimationBarGraph();
     
-    // setupLCD();
-    // displayLoadingAnimationLCD();
-
-    setup_buttons();
-
-    // setupAlphaNum();
-    // displayLoadingAnimationAlphaNum();
-
     setupOLED();
 
     scd40_setup();
@@ -302,28 +311,33 @@ void setup() {
 }
 
 void loop() {
-    // button stuff    
-    button.loop();
-    if (button.isPressed()) {
-        Serial.println("PRESSED");
+    invert_color_button.loop();
+    reset_button.loop();
+    page_button.loop();
+
+    if (was_button_pressed("page")) {
         page = page + 1;
         if (page == max_pages + 1) {
-            page = 1; // reset
+            page = 1; // rollover
         } 
     }
 
-    // reset_data_button_pressed = check_reset_button(reset_data_button);
-    // if (reset_data_button_pressed) {
-    //     if (page == 9) {
-    //         lastNominalEnergyRemaining = nominalEnergyRemaining;
-    //     }
-    //     // else if (page == 14) {
-    //     //     // tripOdometer = odometer;
-    //     // }
-    // }
+    if (was_button_pressed("invert")) {
+        oled_invert_color();
+    }
+
+    if (was_button_pressed("reset")) {
+        if (page == 4) {
+            accel_offset = accel_vector;
+            max_g_vector = 0;
+        }
+        if (page == 6) {
+            lastNominalEnergyRemaining = nominalEnergyRemaining;
+        }
+    }
 
     // get data rate stats and update after each time interval (1 second)
-    long currentMillis = millis();
+    unsigned long  currentMillis = millis();
     if (currentMillis - previouscycle >= interval) {
         previouscycle = currentMillis;
 
@@ -340,12 +354,9 @@ void loop() {
         if (connectedToMaster) {
             Serial.println("Master is offline");
             connectedToMaster = false;   
-            digitalWrite(LED2, LOW);
-        }
-
-        if (connectedToMaster == false) {
-            digitalWrite(LED2, LOW);
-            // write_oled(0, 7, "</>");
+            digitalWrite(LED2, HIGH);
+        } else {
+            digitalWrite(LED2, HIGH);
         }
     }
 
@@ -355,7 +366,6 @@ void loop() {
         update_previouscycle = update_currentMillis;
 
         
-        // sendToLCD(0, "Up time (Master)", 1, String(masterUpTime) + " seconds");
         // sendToLCD(0, "Speed" + String(UIspeed) + "mph", 1, "Odom " + String(odometer));
         // sendToLCD(0, "Charge Line " + String(chargeLineVoltage) + "V", 1, String(chargeLineCurrent) + "A " + String(chargeLinePower) + "KW");
         // sendToLCD(0, "Custom wh/m", 1, String(energyCounter / tripOdometer));
@@ -367,7 +377,7 @@ void loop() {
 
         String unit_space = " ";
 
-        if (page  == 1) {
+        if (page == 1) {
             oled_clear();
             send_to_oled_buffer(0, "HV Batt:");
             send_to_oled_buffer(1, String(((double)battPower)/1000.00) + "KW " + String(battVolts) + "V " + String(battAmps) + "A");
@@ -378,7 +388,17 @@ void loop() {
             oled_update();
         }
 
-        if (page  == 2) {
+        // just front and rear motor power
+        if (page == 2) {
+            oled_clear();
+            send_to_oled_buffer(0, 3, "" + String(frontPower) + unit_space + "KW");
+            send_to_oled_buffer(1, 3, "" + String(rearPower) + unit_space + "KW");
+            send_to_oled_buffer(2, 1, 45, "Batt-Motors=" + String(battPower - (frontPower + rearPower)) + unit_space + "KW");
+            oled_update();
+        }
+
+        // things that don't change much
+        if (page == 3) {
             oled_clear();
             send_to_oled_buffer(0, "Max Regen  " + String(maxRegen) + unit_space + "KW");
             send_to_oled_buffer(1, "Max Disch  " + String(maxDischarge) + unit_space + "KW");
@@ -391,15 +411,27 @@ void loop() {
             oled_update();
         }
 
-        if (page  == 3) {
+        if (page == 4) { // accelerometer stuff
             oled_clear();
+            
             float accel_x = 0.0;
             float accel_y = 0.0;
             float accel_z = 0.0;
             accel_get_g_force(accel_x, accel_y, accel_z);
+            accel_vector = sqrt( (accel_x*accel_x) + (accel_y*accel_y) + (accel_z*accel_z) );
+            accel_vector = accel_vector - accel_offset;
+            if (accel_vector > max_accel_vector) {
+                max_accel_vector = accel_vector;
+            }
+            
             float g_x = accel_x / 9.81;
             float g_y = accel_x / 9.81;
             float g_z = accel_x / 9.81;
+            float g_vector = accel_vector / 9.81;
+
+            if (g_vector > max_g_vector) {
+                max_g_vector = g_vector;
+            }
             
             String sign1 = (accel_x >= 0) ? "+" : "";
             String sign2 = (g_x >= 0) ? "+" : "";
@@ -407,17 +439,27 @@ void loop() {
             String sign4 = (g_y >= 0) ? "+" : "";
             String sign5 = (accel_z >= 0) ? "+" : "";
             String sign6 = (g_z >= 0) ? "+" : "";
+            String sign7 = (accel_vector >= 0) ? "+" : "";
+            String sign8 = (max_accel_vector >= 0) ? "+" : "";
+            String sign9 = (g_vector >= 0) ? "+" : "";
+            String sign10 = (max_g_vector >= 0) ? "+" : "";
 
-            send_to_oled_buffer(0, "Accel X " + sign1 + String(accel_x) + unit_space + "m/s^2");
-            send_to_oled_buffer(1, "g's   X " + sign2 + String(g_x) + unit_space + "g(s)");
-            send_to_oled_buffer(2, "Accel Y " + sign3 + String(accel_y) + unit_space + "m/s^2");
-            send_to_oled_buffer(3, "g's   Y " + sign4 + String(g_y) + unit_space + "g(s)");
-            send_to_oled_buffer(4, "Accel Z " + sign5 + String(accel_z) + unit_space + "m/s^2");
-            send_to_oled_buffer(5, "g's   Z " + sign6 + String(g_z) + unit_space + "g(s)");
+            // send_to_oled_buffer(0, "Accel  X " + sign1 + String(accel_x) + unit_space + "m/s^2");
+            // send_to_oled_buffer(1, "       Y " + sign3 + String(accel_y) + unit_space + "m/s^2");
+            // send_to_oled_buffer(2, "       Z " + sign5 + String(accel_z) + unit_space + "m/s^2");
+            // send_to_oled_buffer(3, "G's    X " + sign2 + String(g_x) + unit_space + "g");
+            // send_to_oled_buffer(4, "G's    Y " + sign4 + String(g_y) + unit_space + "g");
+            // send_to_oled_buffer(5, "G's    Z " + sign6 + String(g_z) + unit_space + "g");
+
+            send_to_oled_buffer(0, 1, 1, "" + String(accel_vector, 1) + "m/s^2");
+            send_to_oled_buffer(1, 2, 9, "" + String(max_accel_vector, 1) + "m/s^2");
+            send_to_oled_buffer(2, 1, 24, "" + String(g_vector, 1) + "g");
+            send_to_oled_buffer(3, 2, 32, "" + String(max_g_vector, 1) + "g");
+
             oled_update();
         }
 
-        if (page  == 4) {
+        if (page == 5) {
             if (scd40_data_ready()) {
                 oled_clear();
                 scd40_get_data(c02, temp_f, humidity);
@@ -428,10 +470,31 @@ void loop() {
             }
         }
 
-        if (page  == 5) {
+        if (page == 6) {
+            oled_clear();
+            send_to_oled_buffer(0, "Custom Attributes");
+            // energyCounter = lastNominalEnergyRemaining - nominalEnergyRemaining;
+            // send_to_oled_buffer(1, "KWh Cntr " + String(energyCounter) + unit_space + "KWh");
+            send_to_oled_buffer(1, "KWh Counter " + String(sampled_energy_counter) + unit_space + "KWh");
+            oled_update();
+        }
+
+        if (page == 7) {
             oled_clear();
             send_to_oled_buffer(0, "Msg/s  " + String(data_rate) + unit_space + "mps");
             send_to_oled_buffer(1, "Total  " + String(messages_received_counter) + unit_space + "Msgs");
+            oled_update();
+        }
+
+        if (page == 8) {
+            oled_clear();
+            oled_image(0);
+            oled_update();
+        }
+
+        if (page == 9) {
+            oled_clear();
+            oled_image(1);
             oled_update();
         }
     }

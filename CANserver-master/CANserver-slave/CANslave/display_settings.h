@@ -12,7 +12,7 @@ static bool displayBattPowerCurrentVoltageLCD = false;
 // grade
 static bool displayGrade = false;
 // batt temp
-static bool displayBattTempLCD = true;
+static bool displayBattTempLCD = false;
 static bool displayBattTempAlphaNum = false;
 // drive / regen limits
 static bool displayLimits = false;
@@ -30,7 +30,6 @@ static bool displayFrontPowerLCD = false;
 static bool displayRearPowerLCD = false;
 static bool displayFrontPowerMaxLCD = false;
 static bool displayRearPowerMaxLCD = false;
-static bool displayRearPowerBarGraph = true;
-static bool displayFrontPowerBarGraph = true;
-
+static bool displayRearPowerBarGraph = false;
+static bool displayFrontPowerBarGraph = false;
 static bool displayChargeLineLCD = false;
