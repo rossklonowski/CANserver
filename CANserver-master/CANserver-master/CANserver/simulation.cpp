@@ -19,14 +19,14 @@ void simulate() {
                 socAVE = 0;
             }
 
-            battTempPct = battTempPct + 1;
+            battTempPct = battTempPct + 0.1;
             if (battTempPct > 80) {
                 battTempPct = 0;
             }
 
             masterUpTime = masterUpTime + 1;
 
-            nominalFullPackEnergy = nominalFullPackEnergy + 1;
+            nominalFullPackEnergy = nominalFullPackEnergy + 0.1;
             if (nominalFullPackEnergy > 80) {
                 nominalFullPackEnergy = 0;
             }

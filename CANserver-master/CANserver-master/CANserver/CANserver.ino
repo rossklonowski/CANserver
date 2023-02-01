@@ -42,18 +42,25 @@ int currentTime_speed = 0;
 static bool debug = false;
 static bool serial_switch = false;
 static int debug_counter = 0;
+static bool simulation = false;
 
+/////////////////////////    TIMERS    //////////////////////////
+// up time timer
 static int interval = 100;
 unsigned long previouscycle = 0;
 
+// simulation timer
+static int simulate_interval = 100;
+unsigned long simulate_previous_cycle = 0; 
+
+// sending im up message timer
 static int intervalReceiver = 1000;
 unsigned long previouscycleReceiver = 0;
 
-static int intervalCheckForImUp = 10000;
-unsigned long previouscycleCheckForImUp = 0;
-
+// timer for since last ack to im up
 long timeSinceLastReceiverPing = 0;
 unsigned long millisAtLastPing = 0;
+/////////////////////////    TIMERS    //////////////////////////
 
 bool connectedToSlave = true;
 
@@ -62,34 +69,16 @@ generalCANSignalAnalysis analyzeMessage; // initialize library
 unsigned long currentMillisSlave = millis();
 
 void handle_received_data(payload payload) {
-
     switch (payload.can_id) {
-
         case 0x3E6 : // Received an Ack
             Serial.println("Received message that slave is up");
             connectedToSlave = true;
-            // sendToDisplay(masterMacAddress, 0x3E6, 1);
-            // slave is UP
-            // reset the time since we last talked to slave    
-            digitalWrite(LED2, LOW); // flash led for loop iter
+            digitalWrite(LED2, LOW);
 
             timeSinceLastReceiverPing = 0;
             millisAtLastPing = millis();
         
             break;
-
-        // case 0x3E5 : // A request for an ack
-        //     Serial.println("Received a request for an Ack");
-        //     connectedToSlave = true;
-        //     // sendToDisplay(masterMacAddress, 0x3E6, 1);
-        //     // slave is UP
-        //     // reset the time since we last talked to slave    
-        //     digitalWrite(LED2, HIGH); // flash led for loop iter
-
-        //     timeSinceLastReceiverPing = 0;
-        //     millisAtLastPing = millis();
-        
-        //     break;
     }
 }
 
@@ -101,6 +90,7 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
     handle_received_data(new_data); // decode message received and update data variables
 }
+
 
 // callback function - gives us feedback about the sent data
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
@@ -154,38 +144,38 @@ void setup(){
 void loop() {
 
     unsigned long currentMillis = millis();
-
     timeSinceLastReceiverPing = currentMillis - millisAtLastPing;
     if (timeSinceLastReceiverPing > 2000) {
-        
         if (connectedToSlave) {
             Serial.println("LOOKS LIKE THE SLAVE IS OFFLINE");
             connectedToSlave = false;    
         }
-
         if (connectedToSlave == false) {
             digitalWrite(LED2, HIGH);
         }
     }
 
-    if (Serial) {
-        unsigned long currentMillis = millis();
-        if (currentMillis - previouscycle >= interval) {
-            previouscycle = currentMillis;
-            // simulate();
-            masterUpTime = masterUpTime + 1;
-            sendToDisplay(receiverMacAddress, 0x3E7, masterUpTime);
+    if (simulation) {
+        unsigned long simulate_millis = millis();
+        if (simulate_millis - simulate_previous_cycle >= simulate_interval) {
+            simulate_previous_cycle = simulate_millis;
+            simulate();
         }
     }
 
-    if (Serial) {
-        long currentMillis = millis();
-        if (currentMillis - previouscycleReceiver >= intervalReceiver) {
-            previouscycleReceiver = currentMillis;
-            Serial.println("Sending are you up message");
-            // digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
-            sendToDisplay(receiverMacAddress, 0x3E6, 1);
-        }
+    unsigned long up_time_currentMillis = millis();
+    if (up_time_currentMillis - previouscycle >= interval) {
+        previouscycle = up_time_currentMillis;
+        masterUpTime = masterUpTime + 1;
+        sendToDisplay(receiverMacAddress, 0x3E7, masterUpTime);
+    }
+
+    unsigned long you_up_millis = millis();
+    if (you_up_millis - previouscycleReceiver >= intervalReceiver) {
+        previouscycleReceiver = you_up_millis;
+        Serial.println("Sending are you up message");
+        // digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
+        sendToDisplay(receiverMacAddress, 0x3E6, 1);
     }
 
     // can message processing follows

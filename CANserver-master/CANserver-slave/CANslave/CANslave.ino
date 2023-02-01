@@ -7,7 +7,7 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include <Adafruit_GFX.h>
-#include "Adafruit_LEDBackpack.h"
+// #include "Adafruit_LEDBackpack.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -23,12 +23,14 @@
 #include "SCD40.h"
 // OLED
 #include <SPI.h>
-#include <Adafruit_SSD1325.h>
 
 #include "payload.h"
 #include "carDataVariables.h"
 #include "display_settings.h"
 #include "program_settings.h"
+
+//graph
+#include "graph.h"
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
@@ -43,7 +45,8 @@ static bool debug = false;
 static int lastCount = 0;
 static int refreshCount = 0;
 
-static int page = 1;
+static int start_page = 1;
+static int page = start_page;
 const int max_pages = 9;
 
 unsigned long previouscycle = 0;
@@ -85,10 +88,9 @@ bool was_button_pressed(String button) {
     return pressed;
 }
 
-
 void handle_received_data(payload payload) {
 
-    // Serial.println("Received can id: " + String(payload.can_id));
+    Serial.println("Received can id: " + String(payload.can_id));
 
     switch (payload.can_id) {
         case 0x312 : // batt temp
@@ -103,8 +105,8 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x336 : // max regen, min discharge
-            maxDischarge = payload.int_value_1;
-            maxRegen = payload.int_value_2;
+            maxDischarge = payload.double_value_1;
+            maxRegen = payload.double_value_2;
             
             break;
 
@@ -264,7 +266,7 @@ void setup() {
     Serial.begin(115200);
     delay(200);
     Serial.println("Starting Setup...");
-    
+
     pinMode(LED2, OUTPUT); // configure blue LED
     digitalWrite(LED2, HIGH);
 
@@ -329,10 +331,13 @@ void loop() {
     if (was_button_pressed("reset")) {
         if (page == 4) {
             accel_offset = accel_vector;
+
             max_g_vector = 0;
+            max_accel_vector = 0;
         }
         if (page == 6) {
             lastNominalEnergyRemaining = nominalEnergyRemaining;
+            tripOdometer = 0.0;
         }
     }
 
@@ -393,7 +398,8 @@ void loop() {
             oled_clear();
             send_to_oled_buffer(0, 3, "" + String(frontPower) + unit_space + "KW");
             send_to_oled_buffer(1, 3, "" + String(rearPower) + unit_space + "KW");
-            send_to_oled_buffer(2, 1, 45, "Batt-Motors=" + String(battPower - (frontPower + rearPower)) + unit_space + "KW");
+            double power_not_from_motors = battPower - ( ( frontPower * 1000 ) + ( rearPower*1000 ) );
+            send_to_oled_buffer(2, 1, 45, "Batt-Motors=" + String(power_not_from_motors/1000) + unit_space + "KW");
             oled_update();
         }
 
@@ -472,10 +478,12 @@ void loop() {
 
         if (page == 6) {
             oled_clear();
-            send_to_oled_buffer(0, "Custom Attributes");
-            // energyCounter = lastNominalEnergyRemaining - nominalEnergyRemaining;
-            // send_to_oled_buffer(1, "KWh Cntr " + String(energyCounter) + unit_space + "KWh");
-            send_to_oled_buffer(1, "KWh Counter " + String(sampled_energy_counter) + unit_space + "KWh");
+            send_to_oled_buffer(0, "Trip");
+            send_to_oled_buffer(1, "Energy   " + String(sampled_energy_counter) + unit_space + "KWh");
+            if (tripOdometer == 0) {
+                tripOdometer = odometer;
+            }
+            send_to_oled_buffer(2, "Distance " + String( (double)(odometer - tripOdometer) * 0.621371, 1) + unit_space + "mi");
             oled_update();
         }
 
@@ -497,5 +505,12 @@ void loop() {
             oled_image(1);
             oled_update();
         }
+
+        // if (page == 10) {
+        //     oled_set_rotation(0);
+        //     oled_update();
+        //     simulate_graph();
+        //     oled_set_rotation(2);
+        // }
     }
 }
