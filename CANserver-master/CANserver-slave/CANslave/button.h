@@ -4,14 +4,14 @@
 //  Created by Ross Klonowski on January 16 2021.
 //
 
-#include <ezButton.h>
+// #include <ezButton.h>
 
 
-#ifndef button_h
-#define button_h
+// #ifndef button_h
+// #define button_h
 
-// void setup_buttons();
+// // void setup_buttons();
 
-// bool was_button_pressed(String);
+// // bool was_button_pressed(String);
 
-#endif /* button_h */
+// #endif /* button_h */

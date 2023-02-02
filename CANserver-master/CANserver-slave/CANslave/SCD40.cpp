@@ -5,7 +5,7 @@
 
 // OLED
 #include <SPI.h>
-#include <Adafruit_GFX.h>
+#include "Custom_Adafruit_GFX.h"
 
 // SCD40 Temp and C02
 #include <SensirionI2CScd4x.h>

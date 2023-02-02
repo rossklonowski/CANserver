@@ -4,9 +4,9 @@
 //  Created by Ross Klonowski on January 16 2021.
 //
 
-static double nominalEnergyRemaining = 0;
+static double nominalEnergyRemaining = 0.0;
 static int expectedEnergyRemaining = 0;
-static double nominalFullPackEnergy = 0;
+static double nominalFullPackEnergy = 0.0;
 
 static double frontInverterTemp = 0.0;
 static double rearInverterTemp = 0.0;
@@ -26,10 +26,10 @@ static int rearPower = 0;
 static int frontPowerLimit = 0;
 static int rearPowerLimit = 0;
 
-static double battVolts = 0;
-static double battAmps = 0;
-static double battPower = 0;
-static double battPowerW = 0;
+static double battVolts = 0.0;
+static double battAmps = 0.0;
+static double battPower = 0.0;
+static double battPowerW = 0.0;
 
 static int frontTorque = 0;
 static int rearTorque = 0;
@@ -46,7 +46,7 @@ static int chargeLinePower = 0;
 
 static int displayOn = 0;
 
-static double odometer = 0;
+static double odometer = 0.0;
 
 // custom signals
 static double UIspeed = 0.0;

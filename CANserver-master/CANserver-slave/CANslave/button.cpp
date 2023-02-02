@@ -5,13 +5,13 @@
 //  Created by Ross Klonowski on September 3 2021.
 //
 
-#include <ezButton.h>
-#include <esp_now.h>
-#include <Adafruit_GFX.h>
-#include "Adafruit_LEDBackpack.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include "program_settings.h"
+// #include <ezButton.h>
+// #include <esp_now.h>
+// #include "Custom_Adafruit_GFX.h"
+// #include "Adafruit_LEDBackpack.h"
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include "program_settings.h"
 
 // ezButton page_button(page_button_pin);
 // ezButton invert_color_button(invert_color_button_pin);

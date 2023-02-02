@@ -3,7 +3,7 @@
 //
 
 // #include "Adafruit_LEDBackpack.h"
-#include <Adafruit_SSD1325.h>
+#include "Custom_Adafruit_SSD1325.h"
 
 #ifndef oled_h
 #define oled_h
@@ -18,64 +18,62 @@
 #define OLED_RESET 17
 #define OLED_DC 16
 
-void oled_clear();
+// void oled_clear();
 
-void oled_update();
+// void oled_update();
 
-void setupOLED();
+// void setupOLED();
 
-void send_to_oled_buffer(int, String);
+// void send_to_oled_buffer(int, String);
 
-void send_to_oled_buffer(int, int, String);
+// void send_to_oled_buffer(int, int, String);
 
-void send_to_oled_buffer(int, int, int, String);
+// void send_to_oled_buffer(int, int, int, String);
 
-void write_oled(int, int, String);
+// void write_oled(int, int, String);
 
-bool oled_invert_color();
+// bool oled_invert_color();
 
-int oled_set_rotation(int);
+// int oled_set_rotation(int);
 
-void oled_image(int);
+// void oled_image(int);
+
+// //////////////////////////////////////////////
+// void draw_axis();
+
+// void update_graph(int values_array[], int bars);
+
+// void simulate_graph();
 
 //////////////////////////////////////////////
-void draw_axis();
 
-void update_graph(int values_array[], int bars);
+class OLED {
+    private:
+        Custom_Adafruit_SSD1325 private_display;
 
-void simulate_graph();
+    public:
 
-//////////////////////////////////////////////
+        OLED();
 
-// class OLED {
-//     private:
+        void clearDisplay();
 
-//         Adafruit_SSD1325 oled_1;
+        void oled_update();
 
-//         int ross;
+        void setupOLED();
 
-//     public:
-//         OLED();
+        void send_to_oled_buffer(int, String);
 
-        // void sample(Adafruit_SSD1325);
+        void send_to_oled_buffer(int, int, String);
 
-        // void clearDisplay();
+        void send_to_oled_buffer(int, int, int, String);
 
-        // void oled_update();
+        void write_oled(int, int, String);
 
-        // void setupOLED();
+        bool oled_invert_color();
 
-        // void send_to_oled_buffer(int, String);
+        void oled_image(int);
 
-        // void send_to_oled_buffer(int, int, String);
-
-        // void send_to_oled_buffer(int, int, int, String);
-
-        // void write_oled(int, int, String);
-
-        // bool oled_invert_color();
-
-        // void oled_image(int);
-// };
+        void set_rotation(int);
+};
 
 #endif /* oled_h */

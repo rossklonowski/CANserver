@@ -12,7 +12,10 @@
 
 void simulate() {
 
-            odometer = odometer + 1;
+            if (odometer == 0) {
+                odometer = 32186.88;
+            }
+            odometer = odometer + 0.01;
 
             socAVE = socAVE + .1;
             if (socAVE > 80) {
@@ -123,16 +126,19 @@ void simulate() {
                 rearPowerLimit = -50;
             }
 
+    
             sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower);
             sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen);
             sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen);
             sendToDisplay(receiverMacAddress, 0x292, socAVE, battTempPct);
             sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp);
+            
             sendToDisplay(receiverMacAddress, 0x383, cabin_temp);
             sendToDisplay(receiverMacAddress, 0x315, rearInverterTemp);
             sendToDisplay(receiverMacAddress, 0x376, frontInverterTemp);
             sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy);
             sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen);
+            
             sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower);
             sendToDisplay(receiverMacAddress, 0x3B6, odometer);
             sendToDisplay(receiverMacAddress, 0x2B3, cabin_humidity);

@@ -8,7 +8,6 @@
 #ifndef simulation_h
 #define simulation_h
 
-// #include "carDataVariables.h"
 void simulate();
 
 #endif /* simulation_h */

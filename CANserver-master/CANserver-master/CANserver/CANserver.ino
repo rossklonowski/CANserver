@@ -42,7 +42,7 @@ int currentTime_speed = 0;
 static bool debug = false;
 static bool serial_switch = false;
 static int debug_counter = 0;
-static bool simulation = false;
+static bool simulation = true;
 
 /////////////////////////    TIMERS    //////////////////////////
 // up time timer
@@ -50,7 +50,7 @@ static int interval = 100;
 unsigned long previouscycle = 0;
 
 // simulation timer
-static int simulate_interval = 100;
+static int simulate_interval = 50;
 unsigned long simulate_previous_cycle = 0; 
 
 // sending im up message timer

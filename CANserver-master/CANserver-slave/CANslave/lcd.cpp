@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <esp_now.h>
 #include <WiFi.h>
-#include <Adafruit_GFX.h>
+#include "Adafruit_GFX.h"
 #include "Adafruit_LEDBackpack.h"
 #include <LiquidCrystal.h>
 #include "lcd.h"
