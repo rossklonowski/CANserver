@@ -2,8 +2,8 @@
 //  oled.h
 //
 
-// #include "Adafruit_LEDBackpack.h"
 #include "Custom_Adafruit_SSD1325.h"
+#include "queue.h"
 
 #ifndef oled_h
 #define oled_h
@@ -18,38 +18,13 @@
 #define OLED_RESET 17
 #define OLED_DC 16
 
-// void oled_clear();
-
-// void oled_update();
-
-// void setupOLED();
-
-// void send_to_oled_buffer(int, String);
-
-// void send_to_oled_buffer(int, int, String);
-
-// void send_to_oled_buffer(int, int, int, String);
-
-// void write_oled(int, int, String);
-
-// bool oled_invert_color();
-
-// int oled_set_rotation(int);
-
-// void oled_image(int);
-
-// //////////////////////////////////////////////
-// void draw_axis();
-
-// void update_graph(int values_array[], int bars);
-
-// void simulate_graph();
-
-//////////////////////////////////////////////
-
 class OLED {
+    
     private:
+        
         Custom_Adafruit_SSD1325 private_display;
+
+        int current_orientation;
 
     public:
 
@@ -74,6 +49,19 @@ class OLED {
         void oled_image(int);
 
         void set_rotation(int);
+
+        void drawLine(int16_t, int16_t, int16_t, int16_t, uint16_t);
+
+        // graph stuff
+        void draw_axis();
+
+        void update_graph(my_queue&);
+
+        void simulate_graph();
+
+        int get_orientation();
+
+        void set_orientation(int);
 };
 
 #endif /* oled_h */

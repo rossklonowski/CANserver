@@ -6,8 +6,6 @@
 
 #include <esp_now.h>
 #include <WiFi.h>
-// #include "Adafruit_GFX.h"
-// #include "Adafruit_LEDBackpack.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -28,14 +26,13 @@
 #include "carDataVariables.h"
 #include "display_settings.h"
 #include "program_settings.h"
-
-//graph
-#include "graph.h"
+#include "queue.h"
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
 
 OLED oled_1;
+my_queue queue_1;
 
 ezButton page_button(page_button_pin);
 ezButton invert_color_button(invert_color_button_pin);
@@ -49,13 +46,22 @@ static int refreshCount = 0;
 
 static int start_page = 1;
 static int page = start_page;
-const int max_pages = 9;
+const int max_pages = 10;
 
 unsigned long previouscycle = 0;
 unsigned long update_previouscycle = 0;
 
 static int interval = 1000;
 static int update_interval = 100;
+
+// graph
+static int graph_last_update = 0;
+static int graph_update_interval = 100;
+
+// loop iterations
+static int last_loop_iters = 0;
+unsigned long previous_loop_iter_check = 0;
+unsigned long loop_iter_check_interval = 1000;
 
 static int previouscycleCheckForMaster = 0;
 static int intervalCheckForMaster = 5000;
@@ -109,6 +115,7 @@ void handle_received_data(payload payload) {
         case 0x336 : // max regen, min discharge
             maxDischarge = payload.int_value_1;
             maxRegen = payload.int_value_2;
+            // queue_1.push(maxRegen);
             
             break;
 
@@ -312,6 +319,16 @@ void setup() {
 
 void loop() {
 
+    loop_counter++;
+
+    long iter_loop_current = millis();
+    if (iter_loop_current - previous_loop_iter_check >= loop_iter_check_interval) {
+        previous_loop_iter_check = iter_loop_current;
+
+        Serial.println("Main loop iter: " + String(loop_counter - last_loop_iters));
+        last_loop_iters = loop_counter;
+    }
+
     invert_color_button.loop();
     reset_button.loop();
     page_button.loop();
@@ -383,6 +400,11 @@ void loop() {
         String unit_space = " ";
 
         if (page == 1) {
+
+            if (oled_1.get_orientation() == 0) {
+                oled_1.set_orientation(2);
+            }
+
             oled_1.clearDisplay();
             oled_1.send_to_oled_buffer(0, "HV Battery");
             oled_1.send_to_oled_buffer(1, String(((double)battPower)/1000.00) + "KW " + String(battVolts) + "V " + String(battAmps) + "A");
@@ -452,13 +474,6 @@ void loop() {
             String sign9 = (g_vector >= 0) ? "+" : "";
             String sign10 = (max_g_vector >= 0) ? "+" : "";
 
-            // oled_1.send_to_oled_buffer(0, "Accel  X " + sign1 + String(accel_x) + unit_space + "m/s^2");
-            // oled_1.send_to_oled_buffer(1, "       Y " + sign3 + String(accel_y) + unit_space + "m/s^2");
-            // oled_1.send_to_oled_buffer(2, "       Z " + sign5 + String(accel_z) + unit_space + "m/s^2");
-            // oled_1.send_to_oled_buffer(3, "G's    X " + sign2 + String(g_x) + unit_space + "g");
-            // oled_1.send_to_oled_buffer(4, "G's    Y " + sign4 + String(g_y) + unit_space + "g");
-            // oled_1.send_to_oled_buffer(5, "G's    Z " + sign6 + String(g_z) + unit_space + "g");
-
             oled_1.send_to_oled_buffer(0, 1, 1, "" + String(accel_vector, 1) + "m/s^2");
             oled_1.send_to_oled_buffer(1, 2, 9, "" + String(max_accel_vector, 1) + "m/s^2");
             oled_1.send_to_oled_buffer(2, 1, 24, "" + String(g_vector, 1) + "g");
@@ -519,10 +534,16 @@ void loop() {
         }
 
         if (page == 10) {
-            oled_1.set_rotation(0);
-            oled_1.oled_update();
-            // simulate_graph();
-            oled_1.set_rotation(2);
+            if (oled_1.get_orientation() == 2) {
+                oled_1.set_orientation(0);
+            }
+
+            long graph_current_millis = millis();
+            if (graph_current_millis - graph_last_update >= graph_update_interval) {
+                Serial.println("Updating Graph!");
+                graph_last_update = graph_current_millis;
+                // oled_1.update_graph(queue_1);
+            }
         }
-    }
+    }   
 }

@@ -8,10 +8,23 @@
 #ifndef queue_h
 #define queue_h
 
-// void setup_queue();
+class my_queue {
+    
+    private:
+        const int size = 127;
 
-// void push_new_val(int val);
+        int queue[];
 
-// void print_queue();
+    public:
+        my_queue();
+
+        void push(int);
+
+        void print();
+
+        int get_size();
+
+        int get_val(int);
+};
 
 #endif /* queue_h */

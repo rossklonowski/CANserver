@@ -7,30 +7,30 @@
 #include <Adafruit_Sensor.h> // allows serial to work??
 
 
-// const int size = 127;
-// int queue[size] = { 0 };
+my_queue::my_queue() {
+    queue[size] = { 0 };
+}
 
-// void setup_queue() {
-// }
+void my_queue::push(int val) {
+    // Serial.println("Pushing... " + String(val));
+    for (int i = size - 2; i >= 0; i--) {
+        int temp = queue[i];
+        queue[i + 1] = temp;
+    } 
+    queue[0] = val;
+}
 
-// void push_new_val(int val) {
+void my_queue::print() {
+    for (int i = 0; i < size; i++) {
+        Serial.print(String(queue[i]) + ",");
+    }
+    Serial.println("");
+}
 
-//     for (int i = size - 2; i >= 0; i--) {
-//         int temp = queue[i];
-//         queue[i + 1] = temp;
-//     } 
-//     queue[0] = val;
-// }
+int my_queue::get_size() {
+    return size;
+}
 
-// void print_queue() {
-//     for (int i = 0; i < size; i++) {
-//         Serial.print(String(queue[i]) + ",");
-//     }
-//     Serial.println("");
-// }
-
-// void average_history() {
-
-//     // average the data in the last time slice
-//     // push it to a queue
-// }
+int my_queue::get_val(int index) {
+    return queue[index];
+}

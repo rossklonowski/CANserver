@@ -10,10 +10,12 @@
 #ifndef graph_h
 #define graph_h
 
+// #include "oled.h"
+
 // void draw_axis();
 
 // void update_graph(int values_array[], int bars);
 
-// void simulate_graph(Adafruit_SSD1325 oled);
+// void simulate_graph();
 
 #endif /* graph_h */
