@@ -46,7 +46,7 @@ static int chargeLinePower = 0;
 
 static int displayOn = 0;
 
-static double odometer = 0.0;
+static float odometer = 0.0;
 
 // custom signals
 static double UIspeed = 0.0;

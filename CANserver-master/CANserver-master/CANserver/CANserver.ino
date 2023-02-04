@@ -15,18 +15,16 @@
  *      Modified by Ross Klonowski
 */
 
-#include <ArduinoJson.h>
 #include "generalCANSignalAnalysis.h" //https://github.com/iChris93/ArduinoLibraryForCANSignalAnalysis
-#include <stdio.h> 
-#include <AsyncJson.h>
+#include <stdio.h>
+#include <AsyncJson.h> // for wifi??
 #include <esp_now.h> // for ESP32 to ESP32 wifi communication
-#include "SPIFFS.h" // for web server files (html,styling)
-#include <math.h>
 #include "sendHelper.h"
 #include "carDataVariables.h"
 #include "simulation.h"
 #include "constants.h"
 #include "payload.h"
+#include "PriUint64.h"
 
 #define LED1 1    //shared with serial tx - try not to use
 #define LED2 2    //onboard blue LED
@@ -42,7 +40,7 @@ int currentTime_speed = 0;
 static bool debug = false;
 static bool serial_switch = false;
 static int debug_counter = 0;
-static bool simulation = true;
+static bool simulation = false;
 
 /////////////////////////    TIMERS    //////////////////////////
 // up time timer
@@ -71,7 +69,6 @@ unsigned long currentMillisSlave = millis();
 void handle_received_data(payload payload) {
     switch (payload.can_id) {
         case 0x3E6 : // Received an Ack
-            Serial.println("Received message that slave is up");
             connectedToSlave = true;
             digitalWrite(LED2, LOW);
 
@@ -95,9 +92,9 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 // callback function - gives us feedback about the sent data
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
     if (status == ESP_NOW_SEND_SUCCESS) {
-        // Serial.println("Delivery Success");
+        // TODO track successes per second
     } else {
-        Serial.println("Delivery Fail!");
+        // TODO track failures per second
     }
 }
 
@@ -109,6 +106,12 @@ void setup(){
 
     Serial.begin(115200);
     delay(100);
+    Serial.println("Starting setup");
+
+    // uint64_t x = 85964712;
+    // Serial.print(PriUint64<DEC>(x));
+    // Serial.print("\n");
+
 
     CAN0.begin(BITRATE);
     CAN0.watchFor(); // then let everything else through anyway
@@ -139,6 +142,8 @@ void setup(){
         Serial.println("Failed to add peer");
         return;
     }
+    Serial.println("Completed Setup");
+
 }
 
 void loop() {
@@ -147,7 +152,6 @@ void loop() {
     timeSinceLastReceiverPing = currentMillis - millisAtLastPing;
     if (timeSinceLastReceiverPing > 2000) {
         if (connectedToSlave) {
-            Serial.println("LOOKS LIKE THE SLAVE IS OFFLINE");
             connectedToSlave = false;    
         }
         if (connectedToSlave == false) {
@@ -173,9 +177,8 @@ void loop() {
     unsigned long you_up_millis = millis();
     if (you_up_millis - previouscycleReceiver >= intervalReceiver) {
         previouscycleReceiver = you_up_millis;
-        Serial.println("Sending are you up message");
         // digitalWrite(LED2, !digitalRead(LED2)); // flash led for loop iter
-        sendToDisplay(receiverMacAddress, 0x3E6, 1);
+        sendToDisplay(receiverMacAddress, 0x3E6, 1); // ask slave if they are up
     }
 
     // can message processing follows
@@ -322,6 +325,34 @@ void loop() {
                 }
                 break;
 
+            case 0x3B6: // odometer
+                if (message.length == 4) {
+                    Serial.println("*****************************************");
+                    odometer = analyzeMessage.getSignal(message.data.uint64, 0, 32, 0.001, 0, false, littleEndian);
+                    
+                    Serial.print("message ID(hex): ");
+                    Serial.print(message.id, HEX);  ///debug display RX message
+                    
+                    Serial.print(" message length(dec): ");
+                    Serial.print(message.length, DEC);
+                
+                    for (int i = 0; i < message.length; i++) {
+                        Serial.print("byte ");
+                        Serial.print(i);
+                        Serial.print(": ");
+                        Serial.print(message.data.byte[i], HEX);
+                        Serial.print(" ");
+                    }
+                    Serial.print("\n");
+                    
+                    Serial.print("float");
+                    Serial.println(odometer);
+                } else {
+                    Serial.println("Message length was not 4 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                }
+                
+                break;
+
             case 0x2B3: // VCRIGHT_logging1Hz
                 if (message.length == 8) {
                     int multiplexor = analyzeMessage.getSignal(message.data.uint64, 0, 4, 1, 0, false, littleEndian);
@@ -329,12 +360,6 @@ void loop() {
                         cabin_humidity = analyzeMessage.getSignal(message.data.uint64, 24, 8, 1, 0, false, littleEndian);
                     } 
                 }
-                break;
-
-            case 0x3B6: // odometer
-                // if (message.length == 4) {
-                    odometer = analyzeMessage.getSignal(message.data.uint64, 0, 32, 0.001, 0, false, littleEndian);
-                // }
                 break;
     
             default:
@@ -412,7 +437,7 @@ void loop() {
                     break;
 
                 case 0x3B6: // odometer
-                    sendToDisplay(receiverMacAddress, 0x3B6, odometer);
+                    // sendToDisplay(receiverMacAddress, 0x3B6, odometer);
         
                     break; 
 

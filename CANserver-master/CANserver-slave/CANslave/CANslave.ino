@@ -46,7 +46,7 @@ static int refreshCount = 0;
 
 static int start_page = 1;
 static int page = start_page;
-const int max_pages = 10;
+const int max_pages = 9;
 
 unsigned long previouscycle = 0;
 unsigned long update_previouscycle = 0;
@@ -387,33 +387,26 @@ void loop() {
     if (update_currentMillis - update_previouscycle >= update_interval) {
         update_previouscycle = update_currentMillis;
 
-        
-        // sendToLCD(0, "Speed" + String(UIspeed) + "mph", 1, "Odom " + String(odometer));
-        // sendToLCD(0, "Charge Line " + String(chargeLineVoltage) + "V", 1, String(chargeLineCurrent) + "A " + String(chargeLinePower) + "KW");
-        // sendToLCD(0, "Custom wh/m", 1, String(energyCounter / tripOdometer));
-        // sendToLCD(0, "Trip Distance", 1, String(tripOdometer));
-        // sendToLCD(0, "Odometer", 1, String(odometer));
-
-        // energyCounter = lastNominalEnergyRemaining - nominalEnergyRemaining;
-        // sendToLCD(0, "Energy Counter", 1, String(energyCounter) + " KWh");
-
         String unit_space = " ";
 
         if (page == 1) {
 
-            if (oled_1.get_orientation() == 0) {
-                oled_1.set_orientation(2);
-            }
+            // if (oled_1.get_orientation() == 0) {
+            //     oled_1.set_orientation(2);
+            // }
 
             oled_1.clearDisplay();
             oled_1.send_to_oled_buffer(0, "HV Battery");
             oled_1.send_to_oled_buffer(1, String(((double)battPower)/1000.00) + "KW " + String(battVolts) + "V " + String(battAmps) + "A");
             // oled_1.send_to_oled_buffer(3, "Front Power:  " + String(frontPower) + unit_space + "KW");
             // oled_1.send_to_oled_buffer(4, "Front Limit:  " + String(frontPowerLimit) + unit_space + "KW");
-            // oled_1.send_to_oled_buffer(5, "Rear Power:   " + String(rearPower) + unit_space + "KW");
-            // oled_1.send_to_oled_buffer(6, "Rear Limit:   " + String(rearPowerLimit) + unit_space + "KW");
-            oled_1.send_to_oled_buffer(3, "F Motor " + String(frontPower) + "/" + String(frontPowerLimit) + unit_space + "KW");
-            oled_1.send_to_oled_buffer(4, "R Motor " + String(rearPower) + "/" + String(rearPowerLimit) + unit_space + "KW");
+            int tempCoolandBatPTlet_f = (tempCoolandBatPTlet * (9/5)) + 32.00;
+            int tempCoolandBatInlet_f = (tempCoolandBatInlet * (9/5)) + 32.00;
+            oled_1.send_to_oled_buffer(3, "CLBattInlet " + String(tempCoolandBatInlet_f) + unit_space + "F");
+            oled_1.send_to_oled_buffer(4, "CLPTInlet " + String(tempCoolandBatPTlet_f) + unit_space + "F");
+
+            oled_1.send_to_oled_buffer(6, "F Motor " + String(frontPower) + "/" + String(frontPowerLimit) + unit_space + "KW");
+            oled_1.send_to_oled_buffer(7, "R Motor " + String(rearPower) + "/" + String(rearPowerLimit) + unit_space + "KW");
             oled_1.oled_update();
         }
 
@@ -509,13 +502,21 @@ void loop() {
             float efficiency_whm = (sampled_energy_counter / trip_distance_miles) * 1000.00;
             oled_1.send_to_oled_buffer(3, " " + String(efficiency_whm) + unit_space + "Wh/mi");
 
-            oled_1.send_to_oled_buffer(8, "Reset Button Resets Trip");
+            oled_1.send_to_oled_buffer(6, "Odometer " + String(odometer * 0.6) + unit_space + "mi");
+            oled_1.send_to_oled_buffer(7, "Rst Btn Rsts Trip");
             
             oled_1.oled_update();
         }
 
         if (page == 7) {
             oled_1.clearDisplay();
+
+            // oled_1.send_to_oled_buffer(0, "Message Stats");
+            // oled_1.send_to_oled_buffer(0, String(dropped_msgs_total) + unit_space + "msgs sent successfully");
+            // oled_1.send_to_oled_buffer(0, String(successful_msgs_total) + unit_space + "msgs dropped");
+            // oled_1.send_to_oled_buffer(0, String(messages_received_counter) + unit_space + "msgs delivered");
+            // oled_1.send_to_oled_buffer(0, String(dopped_per_sec) + unit_space + "drops/sec");
+
             oled_1.send_to_oled_buffer(0, "Msg/s  " + String(data_rate) + unit_space + "mps");
             oled_1.send_to_oled_buffer(1, "Total  " + String(messages_received_counter) + unit_space + "Msgs");
             oled_1.oled_update();
@@ -534,16 +535,16 @@ void loop() {
         }
 
         if (page == 10) {
-            if (oled_1.get_orientation() == 2) {
-                oled_1.set_orientation(0);
-            }
+            // if (oled_1.get_orientation() == 2) {
+            //     oled_1.set_orientation(0);
+            // }
 
-            long graph_current_millis = millis();
-            if (graph_current_millis - graph_last_update >= graph_update_interval) {
-                Serial.println("Updating Graph!");
-                graph_last_update = graph_current_millis;
-                // oled_1.update_graph(queue_1);
-            }
+            // long graph_current_millis = millis();
+            // if (graph_current_millis - graph_last_update >= graph_update_interval) {
+            //     Serial.println("Updating Graph!");
+            //     graph_last_update = graph_current_millis;
+            //     // oled_1.update_graph(queue_1);
+            // }
         }
     }   
 }

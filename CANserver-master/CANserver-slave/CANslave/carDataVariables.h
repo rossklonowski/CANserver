@@ -47,7 +47,7 @@ static int chargeLineVoltage = 0;
 static int chargeLineCurrent = 0;
 static int chargeLinePower = 0;
 
-static double odometer = 0;
+static double odometer = 0.0;
 static double tripOdometer = 0;
 
 // custom stuff

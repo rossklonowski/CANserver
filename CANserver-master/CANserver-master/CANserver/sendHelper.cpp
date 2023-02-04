@@ -56,9 +56,7 @@ int sendToDisplay(const uint8_t *receiverMacAddress, uint32_t can_id, double val
     payload payload;
 
     payload.can_id = can_id;
-    payload.int_value_1 = -1;
-    payload.int_value_2 = -1;
-    payload.int_value_3 = -1;
+    payload.double_value_1 = valueToSend1;
     
     esp_err_t result = 0;
     result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
