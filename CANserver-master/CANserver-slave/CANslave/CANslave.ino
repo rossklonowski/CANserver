@@ -113,8 +113,8 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x336 : // max regen, min discharge
-            maxDischarge = payload.int_value_1;
-            maxRegen = payload.int_value_2;
+            maxDischarge = payload.double_value_1;
+            maxRegen = payload.double_value_2;
             // queue_1.push(maxRegen);
             
             break;
@@ -148,16 +148,12 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x2E5 : // frontPower
-            frontPower = payload.int_value_1;
-            frontPowerLimit = payload.int_value_2;
-            maxRegen = payload.int_value_3;
+            frontPower = payload.double_value_1;
+            frontPowerLimit = payload.double_value_2;
+            maxRegen = payload.double_value_3;
 
             if (frontPower >= frontPowerMax) {
                 frontPowerMax = frontPower;
-            }
-            
-            if (displayFrontPowerBarGraph) {
-                // sendToBarGraphPower("front", frontPower, frontPowerLimit, maxRegen);
             }
             
             break;
@@ -183,9 +179,9 @@ void handle_received_data(payload payload) {
 
         case 0x266 : // rearPower
 
-            rearPower = payload.int_value_1;
-            rearPowerLimit = payload.int_value_2;
-            maxRegen = payload.int_value_3;
+            rearPower = payload.double_value_1;
+            rearPowerLimit = payload.double_value_2;
+            maxRegen = payload.double_value_3;
             
             if (rearPower >= rearPowerMax) {
                 rearPowerMax = rearPower;
@@ -198,8 +194,14 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x321 :
-            tempCoolandBatInlet = payload.int_value_1;
-            tempCoolandBatPTlet = payload.int_value_2;
+            tempCoolantBatInlet = payload.int_value_1;
+            tempCoolantPTInlet = payload.int_value_2;
+            Serial.println("received batinlet: " + String(tempCoolantBatInlet));
+            Serial.println("received PTinlet: " + String(tempCoolantPTInlet));
+            tempCoolantPTInlet_f = (double(tempCoolantPTInlet) * (9/5)) + 32.00;
+            tempCoolantBatInlet_f = (double(tempCoolantBatInlet) * (9/5)) + 32.00;
+            Serial.println("Converted received batinlet: " + String(tempCoolantBatInlet_f));
+            Serial.println("Converted received PTinlet: " + String(tempCoolantPTInlet_f));
 
             break;
 
@@ -324,8 +326,7 @@ void loop() {
     long iter_loop_current = millis();
     if (iter_loop_current - previous_loop_iter_check >= loop_iter_check_interval) {
         previous_loop_iter_check = iter_loop_current;
-
-        Serial.println("Main loop iter: " + String(loop_counter - last_loop_iters));
+        // Serial.println("Main loop iter: " + String(loop_counter - last_loop_iters));
         last_loop_iters = loop_counter;
     }
 
@@ -354,7 +355,8 @@ void loop() {
         }
         if (page == 6) {
             lastNominalEnergyRemaining = nominalEnergyRemaining;
-            tripOdometer = 0.0;
+            startOfTripOdometer = 0.0;
+            sampled_energy_counter = 0.0;
         }
     }
 
@@ -390,23 +392,28 @@ void loop() {
         String unit_space = " ";
 
         if (page == 1) {
-
-            // if (oled_1.get_orientation() == 0) {
-            //     oled_1.set_orientation(2);
-            // }
-
             oled_1.clearDisplay();
-            oled_1.send_to_oled_buffer(0, "HV Battery");
-            oled_1.send_to_oled_buffer(1, String(((double)battPower)/1000.00) + "KW " + String(battVolts) + "V " + String(battAmps) + "A");
-            // oled_1.send_to_oled_buffer(3, "Front Power:  " + String(frontPower) + unit_space + "KW");
-            // oled_1.send_to_oled_buffer(4, "Front Limit:  " + String(frontPowerLimit) + unit_space + "KW");
-            int tempCoolandBatPTlet_f = (tempCoolandBatPTlet * (9/5)) + 32.00;
-            int tempCoolandBatInlet_f = (tempCoolandBatInlet * (9/5)) + 32.00;
-            oled_1.send_to_oled_buffer(3, "CLBattInlet " + String(tempCoolandBatInlet_f) + unit_space + "F");
-            oled_1.send_to_oled_buffer(4, "CLPTInlet " + String(tempCoolandBatPTlet_f) + unit_space + "F");
 
-            oled_1.send_to_oled_buffer(6, "F Motor " + String(frontPower) + "/" + String(frontPowerLimit) + unit_space + "KW");
-            oled_1.send_to_oled_buffer(7, "R Motor " + String(rearPower) + "/" + String(rearPowerLimit) + unit_space + "KW");
+            oled_1.send_to_oled_buffer(0, "HV Battery");
+            double battPowerCustom = battPower;
+            String battPowerUnit = "";
+            int battDP = 0;
+            if (battPowerCustom < 1000) {
+              battPowerCustom = battPower;
+              battPowerUnit = "W";
+              battDP = 0;
+            } else {
+              battPowerCustom = battPower / 1000.00;
+              battPowerUnit = "KW";
+              battDP = 2;
+            }
+            oled_1.send_to_oled_buffer(1, String(battPowerCustom, battDP) + battPowerUnit + " " + String(battVolts, 0) + "V" + " " + String(battAmps) + "A");
+            oled_1.send_to_oled_buffer(3, "Batt Clnt " + String(tempCoolantBatInlet_f) + unit_space + "F");
+            oled_1.send_to_oled_buffer(4, "PwTr Clnt " + String(tempCoolantPTInlet_f) + unit_space + "F");
+
+            oled_1.send_to_oled_buffer(6, "F Motor " + String(frontPower, 0) + "/" + String(frontPowerLimit) + unit_space + "KW");
+            oled_1.send_to_oled_buffer(7, "R Motor " + String(rearPower, 0) + "/" + String(rearPowerLimit) + unit_space + "KW");
+            
             oled_1.oled_update();
         }
 
@@ -491,18 +498,22 @@ void loop() {
             
             oled_1.send_to_oled_buffer(0, "Current Drive");
 
-            if (tripOdometer == 0) {
-                tripOdometer = odometer;
+            if (startOfTripOdometer == 0) {
+              startOfTripOdometer = odometer;
             }
-            double trip_distance_miles = (double)(odometer - tripOdometer) * 0.621371;
+            double trip_distance_miles = (double)(odometer - startOfTripOdometer) * 0.621371;
             oled_1.send_to_oled_buffer(1, " " + String(trip_distance_miles) + unit_space + "mi");
             
             oled_1.send_to_oled_buffer(2, " " + String(sampled_energy_counter) + unit_space + "KWh");
             
-            float efficiency_whm = (sampled_energy_counter / trip_distance_miles) * 1000.00;
+            float efficiency_whm = 0.0;
+            if (trip_distance_miles != 0.0) {
+                float efficiency_whm = (sampled_energy_counter / trip_distance_miles) * 1000.00;
+            }
             oled_1.send_to_oled_buffer(3, " " + String(efficiency_whm) + unit_space + "Wh/mi");
 
-            oled_1.send_to_oled_buffer(6, "Odometer " + String(odometer * 0.6) + unit_space + "mi");
+            oled_1.send_to_oled_buffer(5, "Odometer");
+            oled_1.send_to_oled_buffer(6, " " + String(odometer * 0.621371, 2) + unit_space + "mi");
             oled_1.send_to_oled_buffer(7, "Rst Btn Rsts Trip");
             
             oled_1.oled_update();
@@ -511,6 +522,7 @@ void loop() {
         if (page == 7) {
             oled_1.clearDisplay();
 
+            // TODO
             // oled_1.send_to_oled_buffer(0, "Message Stats");
             // oled_1.send_to_oled_buffer(0, String(dropped_msgs_total) + unit_space + "msgs sent successfully");
             // oled_1.send_to_oled_buffer(0, String(successful_msgs_total) + unit_space + "msgs dropped");

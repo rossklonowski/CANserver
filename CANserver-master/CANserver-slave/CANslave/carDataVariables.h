@@ -20,19 +20,19 @@ static double avgBattTemp = 0.0;
 static int cabin_humidity = 0;
 static int cabin_temp = 0;
 
-static int maxRegen = 0;
-static int maxDischarge = 0;
+static double maxRegen = 0;
+static double maxDischarge = 0;
 
-static int frontPower = 0;
-static int rearPower = 0;
+static double frontPower = 0;
+static double rearPower = 0;
 static int frontPowerMax = 0;
 static int rearPowerMax = 0;
 
 static double UIspeed = 0.0;
 
-static int battVolts = 0;
-static int battAmps = 0;
-static int battPower = 0;
+static double battVolts = 0;
+static double battAmps = 0;
+static double battPower = 0;
 
 static int frontPowerLimit = 0;
 static int rearPowerLimit = 0;
@@ -40,15 +40,17 @@ static int rearPowerLimit = 0;
 static double socAVE = 0;
 static double battTempPct = 0;
 
-static int tempCoolandBatInlet = 0;
-static int tempCoolandBatPTlet = 0;
+static int tempCoolantBatInlet = 0;
+static int tempCoolantPTInlet = 0;
+static int tempCoolantPTInlet_f = 0;
+static int tempCoolantBatInlet_f = 0;
 
 static int chargeLineVoltage = 0;
 static int chargeLineCurrent = 0;
 static int chargeLinePower = 0;
 
 static double odometer = 0.0;
-static double tripOdometer = 0;
+static double startOfTripOdometer = 0;
 
 // custom stuff
 static double energyCounter = 0.0;

@@ -327,30 +327,15 @@ void loop() {
 
             case 0x3B6: // odometer
                 if (message.length == 4) {
-                    Serial.println("*****************************************");
-                    odometer = analyzeMessage.getSignal(message.data.uint64, 0, 32, 0.001, 0, false, littleEndian);
-                    
-                    Serial.print("message ID(hex): ");
-                    Serial.print(message.id, HEX);  ///debug display RX message
-                    
-                    Serial.print(" message length(dec): ");
-                    Serial.print(message.length, DEC);
-                
-                    for (int i = 0; i < message.length; i++) {
-                        Serial.print("byte ");
-                        Serial.print(i);
-                        Serial.print(": ");
-                        Serial.print(message.data.byte[i], HEX);
-                        Serial.print(" ");
+                    // do our own decoding since
+                    // there are other values on this same
+                    // signal and the normal method is
+                    // not working
+                    float kilometers = float(message.data.uint64 * 0.001);
+                    if (kilometers <= 50000) {
+                        odometer = kilometers;
                     }
-                    Serial.print("\n");
-                    
-                    Serial.print("float");
-                    Serial.println(odometer);
-                } else {
-                    Serial.println("Message length was not 4 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 }
-                
                 break;
 
             case 0x2B3: // VCRIGHT_logging1Hz
@@ -407,12 +392,12 @@ void loop() {
                     break;
 
                 case 0x2E5: // frontinverterpower
-                    sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen);
+                    sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit);
                     
                     break;
 
                 case 0x266: // rearinverterpower
-                    sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen);
+                    sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit);
                     
                     break;
 
@@ -437,7 +422,7 @@ void loop() {
                     break;
 
                 case 0x3B6: // odometer
-                    // sendToDisplay(receiverMacAddress, 0x3B6, odometer);
+                    sendToDisplay(receiverMacAddress, 0x3B6, odometer);
         
                     break; 
 
