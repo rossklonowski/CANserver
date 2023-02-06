@@ -263,10 +263,10 @@ void loop() {
                 break;
 
             case 0x321: //VCFRONT_sensors
-                if (message.length == 8) {
+                // if (message.length == 8) {
                     tempCoolandBatInlet = analyzeMessage.getSignal(message.data.uint64, 0, 10, 0.125, -40, false, littleEndian);
                     tempCoolandBatPTlet = analyzeMessage.getSignal(message.data.uint64, 10,11, 0.125, -40, false, littleEndian);
-                }
+                // }
                 break;
 
             case 0x352: // BMS_energyStatus
@@ -343,7 +343,14 @@ void loop() {
                     int multiplexor = analyzeMessage.getSignal(message.data.uint64, 0, 4, 1, 0, false, littleEndian);
                     if (multiplexor == 11) {
                         cabin_humidity = analyzeMessage.getSignal(message.data.uint64, 24, 8, 1, 0, false, littleEndian);
-                    } 
+                    }
+                }
+                break;
+
+            case 0x241: // VCRIGHT_logging1Hz
+                if (message.length == 7) {
+                    coolantFlowBatActual = analyzeMessage.getSignal(message.data.uint64, 0, 9, 0.1, 0, false, littleEndian);
+                    coolantFlowPTActual = analyzeMessage.getSignal(message.data.uint64, 22, 9, 0.1, 0, false, littleEndian);
                 }
                 break;
     
@@ -423,6 +430,11 @@ void loop() {
 
                 case 0x3B6: // odometer
                     sendToDisplay(receiverMacAddress, 0x3B6, odometer);
+        
+                    break; 
+
+                case 0x241: // cooland
+                    sendToDisplay(receiverMacAddress, 0x241, coolantFlowBatActual, coolantFlowPTActual);
         
                     break; 
 

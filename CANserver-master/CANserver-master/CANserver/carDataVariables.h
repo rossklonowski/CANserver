@@ -37,6 +37,9 @@ static int rearTorque = 0;
 static double socAVE = 0;
 static double battTempPct = 0;
 
+static double coolantFlowBatActual = 0.0;
+static double coolantFlowPTActual = 0.0;
+
 static int tempCoolandBatInlet = 0;
 static int tempCoolandBatPTlet = 0;
 

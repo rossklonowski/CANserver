@@ -1,24 +1,24 @@
-// //
-// //  bargraph.h
-// //
+//
+//  bargraph.h
+//
 
-// #ifndef bargraph_h
-// #define bargraph_h
+#ifndef bargraph_h
+#define bargraph_h
 
-// #include <esp_now.h>
+#include <esp_now.h>
 
-// void sendToBarGraphPower(String, int power, int maxPower, int maxRegenPower);
+void sendToBarGraphPower(String, int power, int maxPower, int maxRegenPower);
 
-// void setBarGraphValue(int, int);
+void setBarGraphValue(int, int);
 
-// void setBarGraphValue(int, int, uint8_t);
+void setBarGraphValue(int, int, uint8_t);
 
-// void writeBarGraphs();
+void writeBarGraphs();
 
-// void setupBarGraphs();
+void setupBarGraphs();
 
-// void clearBarGraphs();
+void clearBarGraphs();
 
-// void displayLoadingAnimationBarGraph();
+void displayLoadingAnimationBarGraph();
 
-// #endif /* bargraph_h */
+#endif /* bargraph_h */
