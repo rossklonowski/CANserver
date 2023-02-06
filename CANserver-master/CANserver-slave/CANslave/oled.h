@@ -5,6 +5,8 @@
 #include "Custom_Adafruit_SSD1325.h"
 #include "queue.h"
 
+#include "ProgressBar.h"
+
 #ifndef oled_h
 #define oled_h
 
@@ -62,6 +64,10 @@ class OLED {
         int get_orientation();
 
         void set_orientation(int);
+
+        // Custom_Adafruit_SSD1325& instance();
+
+        void draw(ProgressBar&);
 };
 
 #endif /* oled_h */

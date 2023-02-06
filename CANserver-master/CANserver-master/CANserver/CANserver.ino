@@ -44,7 +44,7 @@ static bool simulation = false;
 
 /////////////////////////    TIMERS    //////////////////////////
 // up time timer
-static int interval = 100;
+static int interval = 1000;
 unsigned long previouscycle = 0;
 
 // simulation timer
@@ -187,7 +187,7 @@ void loop() {
     if (CAN0.read(message)) {
         if (debug) {
             Serial.print("message ID(hex): ");
-            Serial.print(message.id, HEX);  ///debug display RX message
+            Serial.print(message.id, HEX);
             
             Serial.print(" message length(dec): ");
             Serial.print(message.length, DEC);
