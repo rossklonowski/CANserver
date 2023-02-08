@@ -11,7 +11,7 @@ class ProgressBar {
         int _yPos;
         int _barWidth;
         int _barHeight;
-        int _percentFilled;
+        double _percentFilled;
         bool _set = false;
         bool _border;
         int _borderX;

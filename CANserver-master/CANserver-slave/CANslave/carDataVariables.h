@@ -4,6 +4,8 @@
 //  Created by Ross Klonowski on January 16 2021.
 //
 
+#include "Value.h"
+
 static double nominalEnergyRemaining = 0.0;
 static double lastNominalEnergyRemaining = 0.0;
 
@@ -23,6 +25,8 @@ static int cabin_temp = 0;
 static double maxRegen = 0;
 static double maxDischarge = 0;
 
+Value maxDischargeClass(0.0, "KW", "KW");
+
 static double frontPower = 0;
 static double rearPower = 0;
 static int frontPowerMax = 0;
@@ -33,6 +37,8 @@ static double UIspeed = 0.0;
 static double battVolts = 0;
 static double battAmps = 0;
 static double battPower = 0;
+
+Value battPowerClass(0.0, "W", "KW");
 
 static int frontPowerLimit = 0;
 static int rearPowerLimit = 0;

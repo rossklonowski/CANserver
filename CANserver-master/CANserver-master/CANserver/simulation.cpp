@@ -73,13 +73,17 @@ void simulate() {
             //     battVolts = 300;
             // }
 
-            battAmps = 171.428;
-            // battAmps = battAmps + 1;
-            // if (battAmps > 150) {
-            //     battAmps = -100;
-            // }
+            // battAmps = 171.428;
+            battAmps = battAmps + 1;
+            if (battAmps > 700){
+                battAmps = -400;
+            }
 
-            battPower = battAmps * battVolts;
+            // battPower = battAmps * battVolts;
+            battPower = battPower + 100;
+            if (battPower > 50000) {
+                battPower = -1000;
+            }
 
             chargeLineCurrent = chargeLineCurrent + 1;
             if (chargeLineCurrent == 99) {
@@ -96,15 +100,16 @@ void simulate() {
                 chargeLineVoltage = -50;
             }
 
-            maxRegen = maxRegen + 1;
-            if (maxRegen == 99) {
-                maxRegen = 0;
-            }
+            maxRegen = 100.00;
+            // maxRegen = maxRegen + 1;
+            // if (maxRegen == 99) {
+            //     maxRegen = 0;
+            // }
 
-            maxDischarge = maxDischarge + 1;
-            if (maxDischarge == 99) {
-                maxDischarge = 0;
-            }
+            maxDischarge = 252.00;
+            // if (maxDischarge == 99) {
+            //     maxDischarge = 0;
+            // }
 
             frontPower = frontPower + 1;
             if (frontPower >= 150) {

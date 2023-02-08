@@ -117,6 +117,7 @@ void handle_received_data(payload payload) {
 
         case 0x336 : // max regen, min discharge
             maxDischarge = payload.double_value_1;
+            maxDischargeClass.setValue(payload.double_value_1);
             maxRegen = payload.double_value_2;
             // queue_1.push(maxRegen);
             
@@ -126,6 +127,7 @@ void handle_received_data(payload payload) {
             battVolts = payload.double_value_1;
             battAmps = payload.double_value_2;
             battPower = payload.double_value_3;
+            battPowerClass.setValue(payload.double_value_3);
 
             if (energy_last_timer == 0.0) {
                 // skip but set it
@@ -239,6 +241,9 @@ void handle_received_data(payload payload) {
 
         case 0x3B6 : // odometer
             odometer = payload.double_value_1;
+            if (startOfTripOdometer == 0) {
+              startOfTripOdometer = odometer;
+            }
 
             break;
 
@@ -348,6 +353,7 @@ void loop() {
     }
 
     if (was_button_pressed("reset")) {
+        
         if (page == 6) {
             accel_offset = accel_vector;
             max_accel_vector = 0;
@@ -355,6 +361,7 @@ void loop() {
             max_g_vector = 0;
             max_accel_vector = 0;
         }
+
         if (page == 2) {
             lastNominalEnergyRemaining = nominalEnergyRemaining;
             startOfTripOdometer = 0.0;
@@ -398,34 +405,21 @@ void loop() {
 
             oled_1.send_to_oled_buffer(0, "Page " + String(page) + "/" + String(max_pages) + "      " + String(socAVE) + "%");
 
-            double battPowerCustom = battPower;
-            String battPowerUnit = "";
-            int battDP = 0;
-            if (battPowerCustom < 1000) {
-              battPowerCustom = battPower;
-              battPowerUnit = "W";
-              battDP = 0;
-            } else {
-              battPowerCustom = battPower / 1000.00;
-              battPowerUnit = "KW";
-              battDP = 2;
-            }
-            oled_1.send_to_oled_buffer(1, String(battPowerCustom, battDP) + battPowerUnit + " " + String(battVolts, 0) + "V" + " " + String(battAmps) + "A");
+            oled_1.send_to_oled_buffer(1, battPowerClass.getValue() + " " + String(battVolts, 0) + "V" + " " + String(battAmps) + "A");
             
             ProgressBar prog1(1, 20, 126, 3, false);
             double percentageOfBar = 0.0;
-            if (battPower >= 0) {
-                percentageOfBar = log10((double)battPower) / log10((double)maxDischarge*1000);
-            } else {
-                percentageOfBar = log10((double)battPower) / log10((double)maxRegen*1000);
+            if (maxDischargeClass.isSet()) {
+                // percentageOfBar = log10((double)abs(battPower)) / log10((double)maxDischarge*1000);
+                percentageOfBar = (abs(battPower)) / (maxDischarge*1000);
+                prog1.setPercentFill(percentageOfBar);
+                oled_1.draw(prog1);
             }
-            prog1.setPercentFill(percentageOfBar);
-            oled_1.draw(prog1);
 
-            oled_1.send_to_oled_buffer(3, " Batt/PT" + String(coolantFlowBatActual, 0) + "/" + String(coolantFlowPTActual, 0) + "LPM");
+            oled_1.send_to_oled_buffer(3, " " + String(coolantFlowBatActual, 0) + "/" + String(coolantFlowPTActual, 0) + "LPM");
 
             double power_not_from_motors = battPower - ( ( frontPower * 1000 ) + ( rearPower*1000 ) );
-            oled_1.send_to_oled_buffer(4, " Not Motor " + String(power_not_from_motors/1000) + "KW");
+            oled_1.send_to_oled_buffer(4, " !Motor " + String(power_not_from_motors/1000) + "KW");
         
             oled_1.send_to_oled_buffer(5, " " + String(avgBattTemp) + "F " + String(battTempPct) + "%");
             oled_1.send_to_oled_buffer(6, " " + String(maxRegen) + "KW " + String(maxDischarge) + "KW");
@@ -439,9 +433,6 @@ void loop() {
             
             oled_1.send_to_oled_buffer(0, "Page " + String(page) + "/" + String(max_pages) + " Trip");
 
-            if (startOfTripOdometer == 0) {
-              startOfTripOdometer = odometer;
-            }
             double trip_distance_miles = (double)(odometer - startOfTripOdometer) * 0.621371;
             oled_1.send_to_oled_buffer(1, " " + String(trip_distance_miles) + unit_space + "mi");
             
@@ -543,27 +534,9 @@ void loop() {
         if (page == 7) {
             oled_1.clearDisplay();
 
-            oled_1.send_to_oled_buffer(0, "Page " + String(page) + "/" + String(max_pages) + " Comm Stats");
             oled_1.send_to_oled_buffer(1, " Msgs/s  " + String(data_rate));
-            oled_1.send_to_oled_buffer(2, " Total   " + String(messages_received_counter));
-            double droppedRate = 0.0; // TODO            
-            oled_1.send_to_oled_buffer(4, " Drops/s " + String(droppedRate));
-            int droppedMessageCounter = 0; // TODO
-            oled_1.send_to_oled_buffer(5, " Total   " + String(droppedMessageCounter));
+
             oled_1.oled_update();
-        }
-
-        if (page == 8) {
-            // if (oled_1.get_orientation() == 2) {
-            //     oled_1.set_orientation(0);
-            // }
-
-            // long graph_current_millis = millis();
-            // if (graph_current_millis - graph_last_update >= graph_update_interval) {
-            //     Serial.println("Updating Graph!");
-            //     graph_last_update = graph_current_millis;
-            //     // oled_1.update_graph(queue_1);
-            // }
         }
 
         if (page == 9) {

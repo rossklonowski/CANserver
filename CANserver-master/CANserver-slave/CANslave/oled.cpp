@@ -162,8 +162,7 @@ void OLED::set_orientation(int rot) {
 // }
 
 void OLED::draw(ProgressBar &ProgressBar) {
-    int lengthValue = (ProgressBar.getPercentFill()/100) * ProgressBar.getBarWidth();
-    
+    double lengthValue = ProgressBar.getPercentFill() * (double)ProgressBar.getBarWidth();
     private_display.drawRect(ProgressBar.getBorderX(), ProgressBar.getBorderY(), ProgressBar.getBorderWidth(), ProgressBar.getBorderHeight(), WHITE);
     private_display.fillRect(ProgressBar.getxPos(), ProgressBar.getyPos(), lengthValue, ProgressBar.getBarHeight(), WHITE); // pixels from left, pixels from top, rectangle length, rectangle height
 }
