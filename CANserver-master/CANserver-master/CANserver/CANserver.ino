@@ -217,8 +217,7 @@ void loop() {
                     if ((tempvolts > 290) && (tempvolts < 420)) { //avoid some bad messages
                         battVolts = tempvolts;
                         battAmps = analyzeMessage.getSignal(message.data.uint64, 16, 16, -0.1, 0, true, littleEndian); //signed 15, mask off sign
-                        battPowerW = battVolts * battAmps; 
-                        battPower = battVolts * battAmps / 1000;
+                        battPower = battVolts * battAmps; 
                     }
                 }
                 break;
@@ -361,7 +360,7 @@ void loop() {
         if (connectedToSlave) {
             switch (message.id) {
                 case 0x132: // HVBattAmpVolt
-                    sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPowerW);
+                    sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower);
                     
                     break;
                     
@@ -389,7 +388,7 @@ void loop() {
                     break;
 
                 case 0x252: // 
-                    sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen);
+                    sendToDisplay(receiverMacAddress, 0x252, maxDischarge, maxRegen);
 
                     break;
 

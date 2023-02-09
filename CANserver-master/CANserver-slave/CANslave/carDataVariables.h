@@ -22,32 +22,29 @@ static double avgBattTemp = 0.0;
 static int cabin_humidity = 0;
 static int cabin_temp = 0;
 
-static double maxRegen = 0;
-static double maxDischarge = 0;
+Value maxDischargeClass(0.0, "W", "KW");
+Value maxRegenClass(0.0, "W", "KW");
 
-Value maxDischargeClass(0.0, "KW", "KW");
-
-static double frontPower = 0;
-static double rearPower = 0;
+Value frontPowerClass(0.0, "W", "KW");
+Value rearPowerClass(0.0, "W", "KW");
 static int frontPowerMax = 0;
 static int rearPowerMax = 0;
 
 static double UIspeed = 0.0;
 
-static double battVolts = 0;
-static double battAmps = 0;
-static double battPower = 0;
-
+Value battVoltsClass(0.0, "V", "KV");
+Value battAmpsClass(0.0, "A", "KA");
 Value battPowerClass(0.0, "W", "KW");
 
-static int frontPowerLimit = 0;
-static int rearPowerLimit = 0;
+Value frontPowerLimitClass(0.0, "W", "KW");
+Value rearPowerLimitClass(0.0, "W", "KW");
+
 
 static double socAVE = 0;
 static double battTempPct = 0;
 
-static double coolantFlowBatActual = 0.0;
-static double coolantFlowPTActual = 0.0;
+Value coolantFlowBatActualClass(0.0, "LPM");
+Value coolantFlowPTActualClass(0.0, "LPM");
 
 static int tempCoolantBatInlet = 0;
 static int tempCoolantPTInlet = 0;

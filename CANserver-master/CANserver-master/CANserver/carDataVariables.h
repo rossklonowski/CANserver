@@ -29,7 +29,6 @@ static double rearPowerLimit = 0;
 static double battVolts = 0.0;
 static double battAmps = 0.0;
 static double battPower = 0.0;
-static double battPowerW = 0.0;
 
 static int frontTorque = 0;
 static int rearTorque = 0;

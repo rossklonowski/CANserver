@@ -23,8 +23,11 @@ class Value {
         
     public:
         Value(double, String, String);
+        Value(double, String);
         void setValue(double);
-        String getValue();
+        String getString();
+        String getString(bool);
+        double getValue();
         bool isSet();
 };
 

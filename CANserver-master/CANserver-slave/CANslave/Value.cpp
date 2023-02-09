@@ -14,26 +14,32 @@ Value::Value(double doubleValue, String noScale, String k) {
     _set = true;
 }
 
+Value::Value(double doubleValue, String noScale) {
+    _doubleValue = doubleValue;
+    _noScale = noScale;
+    _set = true;
+}
+
 void Value::setValue(double value) {
     _doubleValue = value;
 }
 
-String Value::getValue() {
+String Value::getString() {
 
     double returnValue = _doubleValue;
     String unit = "";
     int decimalPlaces = 0;
     double absoluteValue = abs(_doubleValue);
 
-    if (absoluteValue > 100e3) { // 101 KW
+    if (absoluteValue >= 100e3) { // 101 KW
         returnValue = returnValue / 1000.00;
         unit = _k;
         decimalPlaces = 0;
-    } else if ( (absoluteValue < 100e3) && (absoluteValue > 10e3) ) { // 98 KW
+    } else if ( (absoluteValue < 100e3) && (absoluteValue >= 10e3) ) { // 98 KW
         returnValue = returnValue / 1000.00;
         unit = _k;
         decimalPlaces = 1;
-    } else if ( (absoluteValue < 10e3) && (absoluteValue > 1e3) ) { //2.23KW
+    } else if ( (absoluteValue < 10e3) && (absoluteValue >= 1e3) ) { //2.23KW
         returnValue = returnValue / 1000.00;
         unit = _k;
         decimalPlaces = 2;
@@ -45,6 +51,19 @@ String Value::getValue() {
     return String(returnValue, decimalPlaces) + unit;
 }
 
+String Value::getString(bool noDecimal) {
+
+    double returnValue = _doubleValue;
+    int decimalPlaces = 0;
+    String unit = _noScale;
+
+    return String(returnValue, decimalPlaces) + unit;
+}
+
 bool Value::isSet() {
     return _set;
+}
+
+double Value::getValue() {
+    return _doubleValue;
 }

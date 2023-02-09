@@ -100,7 +100,7 @@ void simulate() {
                 chargeLineVoltage = -50;
             }
 
-            maxRegen = 100.00;
+            maxRegen = 102.00;
             // maxRegen = maxRegen + 1;
             // if (maxRegen == 99) {
             //     maxRegen = 0;
@@ -131,10 +131,20 @@ void simulate() {
                 rearPowerLimit = -50;
             }
 
+            coolantFlowBatActual = coolantFlowBatActual + 0.1;
+            if (coolantFlowBatActual > 6.0) {
+                coolantFlowBatActual = 0.0;
+            }
+
+            coolantFlowPTActual = coolantFlowPTActual + 0.2;
+            if (coolantFlowPTActual > 6.0) {
+                coolantFlowPTActual = 0.0;
+            }
+
     
             sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower);
-            sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit, maxRegen);
-            sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit, maxRegen);
+            sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit);
+            sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit);
             sendToDisplay(receiverMacAddress, 0x292, socAVE, battTempPct);
             sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp);
             
@@ -142,9 +152,10 @@ void simulate() {
             sendToDisplay(receiverMacAddress, 0x315, rearInverterTemp);
             sendToDisplay(receiverMacAddress, 0x376, frontInverterTemp);
             sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy);
-            sendToDisplay(receiverMacAddress, 0x336, maxDischarge, maxRegen);
+            sendToDisplay(receiverMacAddress, 0x252, maxDischarge, maxRegen);
             
             sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower);
             sendToDisplay(receiverMacAddress, 0x3B6, odometer);
             sendToDisplay(receiverMacAddress, 0x2B3, cabin_humidity);
+            sendToDisplay(receiverMacAddress, 0x241, coolantFlowBatActual, coolantFlowPTActual);
 }

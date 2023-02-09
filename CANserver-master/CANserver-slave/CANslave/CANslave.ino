@@ -115,18 +115,16 @@ void handle_received_data(payload payload) {
 
             break;
 
-        case 0x336 : // max regen, min discharge
-            maxDischarge = payload.double_value_1;
-            maxDischargeClass.setValue(payload.double_value_1);
-            maxRegen = payload.double_value_2;
+        case 0x252 : // max regen, min discharge
+            maxDischargeClass.setValue(payload.double_value_1 * 1000);
+            maxRegenClass.setValue(payload.double_value_2 * 1000);
             // queue_1.push(maxRegen);
             
             break;
 
         case 0x132 : // HVBattAmpVolt
-            battVolts = payload.double_value_1;
-            battAmps = payload.double_value_2;
-            battPower = payload.double_value_3;
+            battVoltsClass.setValue(payload.double_value_1);
+            battAmpsClass.setValue(payload.double_value_2);
             battPowerClass.setValue(payload.double_value_3);
 
             if (energy_last_timer == 0.0) {
@@ -135,7 +133,7 @@ void handle_received_data(payload payload) {
             } else {
                 float time_since_last_timestamp = millis() - energy_last_timer;
                 float time_since_last_timestamp_hrs = time_since_last_timestamp / (3.6*(1000000));
-                float energy_over_last_interval = ((battAmps * battVolts)/1000) * time_since_last_timestamp_hrs;
+                float energy_over_last_interval = ((battAmpsClass.getValue() * battVoltsClass.getValue())/1000) * time_since_last_timestamp_hrs;
                 
                 sampled_energy_counter = sampled_energy_counter + energy_over_last_interval;
             }
@@ -153,12 +151,11 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x2E5 : // frontPower
-            frontPower = payload.double_value_1;
-            frontPowerLimit = payload.double_value_2;
-            maxRegen = payload.double_value_3;
+            frontPowerClass.setValue(payload.double_value_1 * 1000.00);
+            frontPowerLimitClass.setValue(payload.double_value_2 * 1000.00);
 
-            if (frontPower >= frontPowerMax) {
-                frontPowerMax = frontPower;
+            if (frontPowerClass.getValue() >= frontPowerMax) {
+                frontPowerMax = frontPowerClass.getValue();
             }
             
             break;
@@ -184,17 +181,8 @@ void handle_received_data(payload payload) {
 
         case 0x266 : // rearPower
 
-            rearPower = payload.double_value_1;
-            rearPowerLimit = payload.double_value_2;
-            maxRegen = payload.double_value_3;
-            
-            if (rearPower >= rearPowerMax) {
-                rearPowerMax = rearPower;
-            }
-
-            if (displayRearPowerBarGraph) {
-                // sendToBarGraphPower("rear", rearPower, rearPowerLimit, maxRegen);
-            }
+            rearPowerClass.setValue(payload.double_value_1 * 1000.00);
+            rearPowerLimitClass.setValue(payload.double_value_2 * 1000.00);
             
             break;
 
@@ -215,6 +203,7 @@ void handle_received_data(payload payload) {
         case 0x376 : // frontInverterTemps
             frontInverterTemp = payload.double_value_1;
             frontInverterTemp = frontInverterTemp * (9/5) + 32;
+
             break;
 
         case 0x315 : // rearInverterTemps
@@ -260,8 +249,8 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x241 :
-            coolantFlowBatActual = payload.double_value_1;
-            coolantFlowPTActual = payload.double_value_2;
+            coolantFlowBatActualClass.setValue(payload.double_value_1);
+            coolantFlowPTActualClass.setValue(payload.double_value_2);
     
             break;
     }
@@ -403,26 +392,26 @@ void loop() {
         if (page == 1) {
             oled_1.clearDisplay();
 
-            oled_1.send_to_oled_buffer(0, "Page " + String(page) + "/" + String(max_pages) + "      " + String(socAVE) + "%");
+            oled_1.send_to_oled_buffer(0, "              " + String(socAVE) + "%");
 
-            oled_1.send_to_oled_buffer(1, battPowerClass.getValue() + " " + String(battVolts, 0) + "V" + " " + String(battAmps) + "A");
+            oled_1.send_to_oled_buffer(1, battPowerClass.getString() + " " + battVoltsClass.getString() + " " + battAmpsClass.getString());
             
-            ProgressBar prog1(1, 20, 126, 3, false);
-            double percentageOfBar = 0.0;
-            if (maxDischargeClass.isSet()) {
-                // percentageOfBar = log10((double)abs(battPower)) / log10((double)maxDischarge*1000);
-                percentageOfBar = (abs(battPower)) / (maxDischarge*1000);
-                prog1.setPercentFill(percentageOfBar);
-                oled_1.draw(prog1);
-            }
+            // ProgressBar prog1(1, 20, 126, 3, false);
+            // double percentageOfBar = 0.0;
+            // if (maxDischargeClass.isSet()) {
+            //     percentageOfBar = log10((double)abs(battPowerClass.getValue())) / log10((double)maxDischargeClass.getValue()); // log10
+            //     // percentageOfBar = (abs(battPower)) / (maxDischarge*1000); // linear
+            //     prog1.setPercentFill(percentageOfBar);
+            //     oled_1.draw(prog1);
+            // }
 
-            oled_1.send_to_oled_buffer(3, " " + String(coolantFlowBatActual, 0) + "/" + String(coolantFlowPTActual, 0) + "LPM");
+            oled_1.send_to_oled_buffer(3, " " + coolantFlowBatActualClass.getString(true) + "   " + coolantFlowPTActualClass.getString(true));
 
-            double power_not_from_motors = battPower - ( ( frontPower * 1000 ) + ( rearPower*1000 ) );
-            oled_1.send_to_oled_buffer(4, " !Motor " + String(power_not_from_motors/1000) + "KW");
+            double power_not_from_motors = battPowerClass.getValue() - (frontPowerClass.getValue() + rearPowerClass.getValue()) ;
+            oled_1.send_to_oled_buffer(4, " " + String(power_not_from_motors/1000) + "KW");
         
             oled_1.send_to_oled_buffer(5, " " + String(avgBattTemp) + "F " + String(battTempPct) + "%");
-            oled_1.send_to_oled_buffer(6, " " + String(maxRegen) + "KW " + String(maxDischarge) + "KW");
+            oled_1.send_to_oled_buffer(6, " " + maxRegenClass.getString() + " " + maxDischargeClass.getString());
             oled_1.send_to_oled_buffer(7, " " + String(nominalEnergyRemaining) + "/" + String(nominalFullPackEnergy) + "KWh");
             
             oled_1.oled_update();
@@ -431,7 +420,7 @@ void loop() {
         if (page == 2) {
             oled_1.clearDisplay();
             
-            oled_1.send_to_oled_buffer(0, "Page " + String(page) + "/" + String(max_pages) + " Trip");
+            oled_1.send_to_oled_buffer(0, "Trip");
 
             double trip_distance_miles = (double)(odometer - startOfTripOdometer) * 0.621371;
             oled_1.send_to_oled_buffer(1, " " + String(trip_distance_miles) + unit_space + "mi");
@@ -440,9 +429,9 @@ void loop() {
             
             float efficiency_whm = 0.0;
             if (trip_distance_miles != 0.0) {
-                float efficiency_whm = (sampled_energy_counter / trip_distance_miles) * 1000.00;
+                efficiency_whm = (sampled_energy_counter / trip_distance_miles) * 1000.00;
             }
-            oled_1.send_to_oled_buffer(3, " " + String(efficiency_whm) + unit_space + "Wh/mi");
+            oled_1.send_to_oled_buffer(3, " " + String(efficiency_whm, 0) + unit_space + "Wh/mi");
 
             oled_1.send_to_oled_buffer(6, "Odometer");
             oled_1.send_to_oled_buffer(7, " " + String(odometer * 0.621371, 2) + unit_space + "mi");
@@ -453,12 +442,12 @@ void loop() {
         // just front and rear motor power
         if (page == 3) {
             oled_1.clearDisplay();
-            oled_1.send_to_oled_buffer(0, "Page " + String(page) + "/" + String(max_pages));
-            oled_1.send_to_oled_buffer(1, 3, "F " + String(frontPower) + unit_space + "");
-            oled_1.send_to_oled_buffer(2, 3, "R " + String(rearPower) + unit_space + "");
-            // double power_not_from_motors = battPower - ( ( frontPower * 1000 ) + ( rearPower*1000 ) );
-            // oled_1.send_to_oled_buffer(6, "Non Motor Power");
-            // oled_1.send_to_oled_buffer(7, " " + String(power_not_from_motors/1000) + unit_space + "KW");
+
+            oled_1.send_to_oled_buffer(0, "Motors ");
+            oled_1.send_to_oled_buffer(1, " F " + frontPowerClass.getString());
+            oled_1.send_to_oled_buffer(2, " FL " + frontPowerLimitClass.getString());
+            oled_1.send_to_oled_buffer(4, " R " + rearPowerClass.getString());
+            oled_1.send_to_oled_buffer(5, " RL " + rearPowerLimitClass.getString());
             
             oled_1.oled_update();
         }
@@ -467,7 +456,7 @@ void loop() {
         if (page == 4) {
             oled_1.clearDisplay();
             
-            oled_1.send_to_oled_buffer(0, "Page " + String(page) + "/" + String(max_pages) + " Temps");
+            oled_1.send_to_oled_buffer(0, "Temps");
             oled_1.send_to_oled_buffer(1, " Batt Clnt " + String(tempCoolantBatInlet_f) + unit_space + "F");
             oled_1.send_to_oled_buffer(2, " PwTr Clnt " + String(tempCoolantPTInlet_f) + unit_space + "F");
             oled_1.send_to_oled_buffer(3, " Batt Min  " + String(minBattTemp) + unit_space + "F");
@@ -481,7 +470,7 @@ void loop() {
                 oled_1.clearDisplay();
                 
                 scd40_get_data(c02, temp_f, humidity);
-                oled_1.send_to_oled_buffer(0, "Page " + String(page) + "/" + String(max_pages) + " SCD40");
+                oled_1.send_to_oled_buffer(0, "SCD40");
                 oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + unit_space + "F");
                 oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + unit_space + "%");
                 oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + unit_space + "ppm");
@@ -539,13 +528,7 @@ void loop() {
             oled_1.oled_update();
         }
 
-        if (page == 9) {
-            oled_1.clearDisplay();
-            oled_1.oled_image(0);
-            oled_1.oled_update();
-        }
-
-        if (page == 10) {
+        if (page == 8) {
             oled_1.clearDisplay();
             oled_1.oled_image(1);
             oled_1.oled_update();
