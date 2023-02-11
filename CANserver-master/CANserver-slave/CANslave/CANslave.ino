@@ -30,6 +30,9 @@
 
 #include "ProgressBar.h"
 
+#include "PriUint64.h"
+
+
 #define LED1 1    // shared with serial tx - try not to use
 #define LED2 2    // onboard blue LED
 
@@ -48,7 +51,7 @@ static int refreshCount = 0;
 
 // page stuff
 static int start_page = 1;
-const int max_pages = 10;
+const int max_pages = 6;
 static int page = start_page;
 
 unsigned long previouscycle = 0;
@@ -101,23 +104,17 @@ bool was_button_pressed(String button) {
 
 void handle_received_data(payload payload) {
 
-    // Serial.println("Received can id: " + String(payload.can_id, HEX));
-
     switch (payload.can_id) {
         case 0x312 : // batt temp
-            minBattTemp = payload.double_value_1;
-            minBattTemp = minBattTemp * (9/5) + 32; // convert to f
-            
-            maxBattTemp = payload.double_value_2;
-            maxBattTemp = maxBattTemp * (9/5) + 32; // convert to f
-
-            avgBattTemp = (minBattTemp + maxBattTemp) / 2.0;
+            minBattTemp.setValue(payload.double_value_1 * (9/5) + 32);
+            maxBattTemp.setValue(payload.double_value_2 * (9/5) + 32);
+            avgBattTemp.setValue((minBattTemp.getValue() + maxBattTemp.getValue()) / 2.0);
 
             break;
 
         case 0x252 : // max regen, min discharge
-            maxDischargeClass.setValue(payload.double_value_1 * 1000);
-            maxRegenClass.setValue(payload.double_value_2 * 1000);
+            maxDischargeClass.setValue(payload.double_value_1 * 1000.00);
+            maxRegenClass.setValue(payload.double_value_2 * 1000.00);
             // queue_1.push(maxRegen);
             
             break;
@@ -161,8 +158,8 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x292 : // BMS_SOC
-            socAVE = payload.double_value_1;
-            battTempPct = payload.double_value_2;
+            socAVE.setValue(payload.double_value_1);
+            battTempPct.setValue(payload.double_value_2);
             
             break;
 
@@ -173,9 +170,9 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x264 : // ID264ChargeLineStatus
-            chargeLineCurrent = payload.int_value_1;
-            chargeLineVoltage = payload.int_value_2;
-            chargeLinePower = payload.int_value_3;
+            chargeLineCurrentClass.setValue(payload.double_value_1);
+            chargeLineVoltageClass.setValue(payload.double_value_2);
+            chargeLinePowerClass.setValue(payload.double_value_3);
 
             break;
 
@@ -187,10 +184,8 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x321 :
-            tempCoolantBatInlet = payload.int_value_1;
-            tempCoolantPTInlet = payload.int_value_2;
-            tempCoolantPTInlet_f = (double(tempCoolantPTInlet) * (9/5)) + 32.00;
-            tempCoolantBatInlet_f = (double(tempCoolantBatInlet) * (9/5)) + 32.00;
+            tempCoolantBatInletClass.setValue(payload.double_value_1 * (9/5) + 32.00);
+            tempCoolantPTInletClass.setValue(payload.double_value_2 * (9/5) + 32.00);
 
             break;
 
@@ -201,25 +196,12 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x376 : // frontInverterTemps
-            frontInverterTemp = payload.double_value_1;
-            frontInverterTemp = frontInverterTemp * (9/5) + 32;
+            frontInverterTempClass.setValue(payload.double_value_1 * (9/5) + 32.00);
 
             break;
 
         case 0x315 : // rearInverterTemps
-            rearInverterTemp = payload.double_value_1;
-            rearInverterTemp = rearInverterTemp * (9/5) + 32;
-
-            break;
-
-        case 0x383 : // VCRIGHT_thsStatus
-            cabin_temp = payload.int_value_1;
-            cabin_temp = cabin_temp * (9/5) + 32;
-            
-            break;
-
-        case 0x2B3 : // VCRIGHT_logging1Hz
-            cabin_humidity = payload.int_value_1;
+            rearInverterTempClass.setValue(payload.double_value_1 * (9/5) + 32.00);
 
             break;
 
@@ -237,7 +219,6 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x3E6 : // send im up message if we are asked for it
-            // Serial.println("Received are you up message");
             timeSinceLastAskPingFromMaster = 0;
             millisAtLastPing = millis();
             connectedToMaster = true;
@@ -316,6 +297,13 @@ void setup() {
     }
 
     Serial.println("Finished with setup!");
+
+    // uint64_t var = 0xD3A0000002306B0C;
+    // Serial.println(PriUint64<HEX>(var));
+    // // var = var << 2;
+    // uint64_t mask = 0xFFFFFFFF;
+    // var = var & mask;
+    // Serial.println(PriUint64<HEX>(var));
 }
 
 void loop() {
@@ -374,7 +362,6 @@ void loop() {
     if (timeSinceLastAskPingFromMaster > intervalCheckForMaster) {
         
         if (connectedToMaster) {
-            Serial.println("Master is offline");
             connectedToMaster = false;   
             digitalWrite(LED2, HIGH);
         } else {
@@ -392,10 +379,9 @@ void loop() {
         if (page == 1) {
             oled_1.clearDisplay();
 
-            oled_1.send_to_oled_buffer(0, "              " + String(socAVE) + "%");
-
-            oled_1.send_to_oled_buffer(1, battPowerClass.getString() + " " + battVoltsClass.getString() + " " + battAmpsClass.getString());
-            
+            oled_1.send_to_oled_buffer(0, minBattTemp.getString() + " " + maxBattTemp.getString());
+            oled_1.send_to_oled_buffer(0, "                " + socAVE.getString(1));
+            oled_1.send_to_oled_buffer(1, battPowerClass.getString() + " " + battVoltsClass.getString());
             // ProgressBar prog1(1, 20, 126, 3, false);
             // double percentageOfBar = 0.0;
             // if (maxDischargeClass.isSet()) {
@@ -405,21 +391,19 @@ void loop() {
             //     oled_1.draw(prog1);
             // }
 
-            oled_1.send_to_oled_buffer(3, " " + coolantFlowBatActualClass.getString(true) + "   " + coolantFlowPTActualClass.getString(true));
-
-            double power_not_from_motors = battPowerClass.getValue() - (frontPowerClass.getValue() + rearPowerClass.getValue()) ;
-            oled_1.send_to_oled_buffer(4, " " + String(power_not_from_motors/1000) + "KW");
+            powerNotFromMotors.setValue((battPowerClass.getValue() - (frontPowerClass.getValue() + rearPowerClass.getValue())));
+            oled_1.send_to_oled_buffer(3, powerNotFromMotors.getString());
+            oled_1.send_to_oled_buffer(4, coolantFlowBatActualClass.getString(0) + " " + coolantFlowPTActualClass.getString(0));
         
-            oled_1.send_to_oled_buffer(5, " " + String(avgBattTemp) + "F " + String(battTempPct) + "%");
-            oled_1.send_to_oled_buffer(6, " " + maxRegenClass.getString() + " " + maxDischargeClass.getString());
-            oled_1.send_to_oled_buffer(7, " " + String(nominalEnergyRemaining) + "/" + String(nominalFullPackEnergy) + "KWh");
+            oled_1.send_to_oled_buffer(6, maxRegenClass.getString() + " " + maxDischargeClass.getString());
+            oled_1.send_to_oled_buffer(7, String(nominalEnergyRemaining) + "/" + String(nominalFullPackEnergy) + "KWh");
             
             oled_1.oled_update();
         }
 
         if (page == 2) {
             oled_1.clearDisplay();
-            
+
             oled_1.send_to_oled_buffer(0, "Trip");
 
             double trip_distance_miles = (double)(odometer - startOfTripOdometer) * 0.621371;
@@ -445,27 +429,43 @@ void loop() {
 
             oled_1.send_to_oled_buffer(0, "Motors ");
             oled_1.send_to_oled_buffer(1, " F " + frontPowerClass.getString());
-            oled_1.send_to_oled_buffer(2, " FL " + frontPowerLimitClass.getString());
+            // oled_1.send_to_oled_buffer(2, " FL " + frontPowerLimitClass.getString());
+            oled_1.send_to_oled_buffer(2, " " + frontInverterTempClass.getString());
+            
             oled_1.send_to_oled_buffer(4, " R " + rearPowerClass.getString());
-            oled_1.send_to_oled_buffer(5, " RL " + rearPowerLimitClass.getString());
+            // oled_1.send_to_oled_buffer(5, " RL " + rearPowerLimitClass.getString());
+            oled_1.send_to_oled_buffer(5, " " + rearInverterTempClass.getString());
+            
+            oled_1.oled_update();
+        }
+
+        // Charger stuff
+        if (page == 4) {
+            oled_1.clearDisplay();
+
+            oled_1.send_to_oled_buffer(0, "Charge Line");
+            oled_1.send_to_oled_buffer(1, chargeLinePowerClass.getString());
+            oled_1.send_to_oled_buffer(2, chargeLineVoltageClass.getString());
+            oled_1.send_to_oled_buffer(3, chargeLineCurrentClass.getString());
+
             
             oled_1.oled_update();
         }
 
         // things that don't change much
-        if (page == 4) {
+        if (page == 5) {
             oled_1.clearDisplay();
             
             oled_1.send_to_oled_buffer(0, "Temps");
-            oled_1.send_to_oled_buffer(1, " Batt Clnt " + String(tempCoolantBatInlet_f) + unit_space + "F");
-            oled_1.send_to_oled_buffer(2, " PwTr Clnt " + String(tempCoolantPTInlet_f) + unit_space + "F");
-            oled_1.send_to_oled_buffer(3, " Batt Min  " + String(minBattTemp) + unit_space + "F");
-            oled_1.send_to_oled_buffer(4, " Batt Max  " + String(maxBattTemp) + unit_space + "F");
+            oled_1.send_to_oled_buffer(1, " Batt Clnt " + tempCoolantBatInletClass.getString());
+            oled_1.send_to_oled_buffer(2, " PwTr Clnt " + tempCoolantPTInletClass.getString());
+            oled_1.send_to_oled_buffer(3, " Batt Min  " + minBattTemp.getString());
+            oled_1.send_to_oled_buffer(4, " Batt Max  " + maxBattTemp.getString());
             
             oled_1.oled_update();
         }
 
-        if (page == 5) {
+        if (page == 6) {
             if (scd40_data_ready()) {
                 oled_1.clearDisplay();
                 

@@ -22,11 +22,11 @@ class Value {
         bool _set = false;
         
     public:
-        Value(double, String, String);
-        Value(double, String);
+        Value(String, String);
+        Value(String);
         void setValue(double);
         String getString();
-        String getString(bool);
+        String getString(int);
         double getValue();
         bool isSet();
 };

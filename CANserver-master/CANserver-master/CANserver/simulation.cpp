@@ -17,9 +17,9 @@ void simulate() {
             }
             odometer = odometer + 0.01;
 
-            socAVE = socAVE + .1;
-            if (socAVE > 80) {
-                socAVE = 0;
+            socAVE = socAVE + 0.1;
+            if (socAVE > 80.0) {
+                socAVE = 0.0;
             }
 
             battTempPct = battTempPct + 0.1;
@@ -141,6 +141,17 @@ void simulate() {
                 coolantFlowPTActual = 0.0;
             }
 
+
+            tempCoolandBatInlet = tempCoolandBatInlet + 0.1;
+            if (tempCoolandBatInlet > 80.0) {
+                tempCoolandBatInlet = 0.0;
+            }
+
+            tempCoolandBatPTlet = tempCoolandBatPTlet + 0.2;
+            if (tempCoolandBatPTlet > 80.0) {
+                tempCoolandBatPTlet = 0.0;
+            }
+
     
             sendToDisplay(receiverMacAddress, 0x132, battVolts, battAmps, battPower);
             sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit);
@@ -158,4 +169,5 @@ void simulate() {
             sendToDisplay(receiverMacAddress, 0x3B6, odometer);
             sendToDisplay(receiverMacAddress, 0x2B3, cabin_humidity);
             sendToDisplay(receiverMacAddress, 0x241, coolantFlowBatActual, coolantFlowPTActual);
+            sendToDisplay(receiverMacAddress, 0x321, tempCoolandBatInlet, tempCoolandBatPTlet);
 }

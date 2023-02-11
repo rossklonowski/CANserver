@@ -157,10 +157,6 @@ void OLED::set_orientation(int rot) {
     set_rotation(rot);
 }
 
-// Custom_Adafruit_SSD1325& OLED::instance() {
-//     return private_display;
-// }
-
 void OLED::draw(ProgressBar &ProgressBar) {
     double lengthValue = ProgressBar.getPercentFill() * (double)ProgressBar.getBarWidth();
     private_display.drawRect(ProgressBar.getBorderX(), ProgressBar.getBorderY(), ProgressBar.getBorderWidth(), ProgressBar.getBorderHeight(), WHITE);

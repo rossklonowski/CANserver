@@ -326,14 +326,45 @@ void loop() {
 
             case 0x3B6: // odometer
                 if (message.length == 4) {
-                    // do our own decoding since
-                    // there are other values on this same
-                    // signal and the normal method is
-                    // not working
-                    float kilometers = float(message.data.uint64 * 0.001);
-                    if (kilometers <= 50000) {
-                        odometer = kilometers;
+                    Serial.println("message length was " + String(message.length));
+                    Serial.println("ODOMETER: ");
+                    
+                    Serial.print("message ID(hex): ");
+                    Serial.println(message.id, HEX);
+                    
+                    Serial.print("message length(dec): ");
+                    Serial.print(message.length, DEC);
+                
+                    for (int i = 0; i < message.length; i++) {
+                        Serial.print("byte ");
+                        Serial.print(i);
+                        Serial.print(": ");
+                        Serial.print(message.data.byte[i], HEX);
+                        Serial.print(" ");
                     }
+
+                    Serial.print("message.data.uint64: ");
+                    Serial.println(PriUint64<HEX>(message.data.uint64));
+                    uint64_t odometer_64 = message.data.uint64 & 0xFFFFFFFF;
+                    Serial.print("After bit mask: ");
+                    Serial.println(PriUint64<HEX>(odometer_64));
+                    
+                    odometer = float(odometer_64 * 0.001);
+                    Serial.println(odometer * 0.621371);
+                    Serial.print("-----------------------------\n");
+
+                    // if (message.length == 4) {
+                    //     // do our own decoding since
+                    //     // there are other values on this same
+                    //     // signal and the normal method is
+                    //     // not working
+                    //     float kilometers = float(message.data.uint64 * 0.001);
+                    //     if (kilometers <= 50000) {
+                    //         odometer = kilometers;
+                    //     }
+                    // }
+                } else {
+                    Serial.println("message length was actually" + String(message.length));
                 }
                 break;
 
@@ -412,7 +443,6 @@ void loop() {
                     
                     break;
 
-                case 0x383: // VCRIGHT_thsStatus
                     sendToDisplay(receiverMacAddress, 0x383, cabin_temp);
                     
                     break;
@@ -434,6 +464,11 @@ void loop() {
 
                 case 0x241: // cooland
                     sendToDisplay(receiverMacAddress, 0x241, coolantFlowBatActual, coolantFlowPTActual);
+        
+                    break; 
+
+                case 0x321: // coolant temps
+                    sendToDisplay(receiverMacAddress, 0x321, tempCoolandBatInlet, tempCoolandBatPTlet);
         
                     break; 
 
