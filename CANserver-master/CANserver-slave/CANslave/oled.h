@@ -52,7 +52,7 @@ class OLED {
 
         void set_rotation(int);
 
-        void drawLine(int16_t, int16_t, int16_t, int16_t, uint16_t);
+        void drawLine(int16_t, int16_t, int16_t, int16_t);
 
         // graph stuff
         void draw_axis();

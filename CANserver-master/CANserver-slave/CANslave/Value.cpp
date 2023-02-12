@@ -81,3 +81,7 @@ bool Value::isSet() {
 double Value::getValue() {
     return _doubleValue;
 }
+
+void Value::resetValue() {
+    _doubleValue = 0.0;
+}

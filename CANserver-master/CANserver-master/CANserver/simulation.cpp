@@ -17,7 +17,7 @@ void simulate() {
             }
             odometer = odometer + 0.01;
 
-            socAVE = socAVE + 0.1;
+            socAVE = socAVE + 0.06;
             if (socAVE > 80.0) {
                 socAVE = 0.0;
             }
@@ -73,17 +73,18 @@ void simulate() {
             //     battVolts = 300;
             // }
 
-            // battAmps = 171.428;
-            battAmps = battAmps + 1;
-            if (battAmps > 700){
-                battAmps = -400;
-            }
+            battAmps = 171.428;
+            // battAmps = battAmps + 1;
+            // if (battAmps > 700){
+            //     battAmps = -400;
+            // }
 
+            battPower = 10000.00;
             // battPower = battAmps * battVolts;
-            battPower = battPower + 100;
-            if (battPower > 50000) {
-                battPower = -1000;
-            }
+            // battPower = battPower + 100;
+            // if (battPower > 50000) {
+            //     battPower = -1000;
+            // }
 
             chargeLineCurrent = chargeLineCurrent + 1;
             if (chargeLineCurrent == 99) {

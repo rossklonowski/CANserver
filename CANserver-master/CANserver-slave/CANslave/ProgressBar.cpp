@@ -29,6 +29,9 @@ ProgressBar::ProgressBar(int xPos, int yPos, int barWidth, int barHeight, bool b
 
 void ProgressBar::setPercentFill(double percentFilled) {
     _set = true;
+    if (percentFilled > 1) { // if not a ratio, make it so 
+        percentFilled = percentFilled / 100.00;
+    }
     if ( (percentFilled <= 1) && (percentFilled >= 0) ) { 
 	    _percentFilled = percentFilled;
     }

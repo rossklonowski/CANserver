@@ -29,6 +29,7 @@ class Value {
         String getString(int);
         double getValue();
         bool isSet();
+        void resetValue();
 };
 
 #endif /* value_h */

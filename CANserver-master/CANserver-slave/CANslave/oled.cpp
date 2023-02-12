@@ -92,8 +92,8 @@ void OLED::set_rotation(int rot) {
     private_display.setRotation(rot);
 }
 
-void OLED::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color) {
-    private_display.drawLine(x0, y0, x1, x1, color);
+void OLED::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
+    private_display.drawLine(x0, y0, x1, y1, WHITE);
 }
 
 int pixels_from_side = 10;
