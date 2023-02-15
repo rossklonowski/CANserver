@@ -8,6 +8,10 @@
 
 Value nominalEnergyRemaining("KWh");
 Value nominalFullPackEnergy("KWh");
+Value energyBuffer("KWh");
+Value batteryHeatTarget("F");
+Value batteryCoolTarget("F");
+
 Value minBattTemp("F");
 Value maxBattTemp("F");
 Value avgBattTemp("F");

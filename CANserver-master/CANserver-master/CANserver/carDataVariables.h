@@ -7,6 +7,10 @@
 static double nominalEnergyRemaining = 0.0;
 static int expectedEnergyRemaining = 0.0;
 static double nominalFullPackEnergy = 0.0;
+static double energyBuffer = 0.0;
+
+static double batteryCoolTarget = 0.0;
+static double batteryHeatTarget= 0.0;
 
 static double frontInverterTemp = 0.0;
 static double rearInverterTemp = 0.0;

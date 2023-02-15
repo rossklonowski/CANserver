@@ -6,6 +6,8 @@
 //
 
 #include "Value.h"
+#include <math.h>
+#include <regex>
 
 Value::Value(String noScale, String k) {
     _doubleValue = 0.0;
@@ -35,19 +37,24 @@ String Value::getString() {
             returnValue = returnValue / 1000.00;
             unit = _k;
             decimalPlaces = 0;
+            returnValue = round(returnValue);
         } else if ( (absoluteValue < 100e3) && (absoluteValue >= 10e3) ) { // 98 KW
             returnValue = returnValue / 1000.00;
             unit = _k;
-            decimalPlaces = 1;
+            decimalPlaces = 0;
+            returnValue = round(returnValue);
         } else if ( (absoluteValue < 10e3) && (absoluteValue >= 1e3) ) { //2.23KW
             returnValue = returnValue / 1000.00;
             unit = _k;
-            decimalPlaces = 2;
+            decimalPlaces = 1;
         } else if (absoluteValue < 1e3) { // 900W, 1W
             unit = _noScale;
+            returnValue = round(returnValue);
             decimalPlaces = 0;
         }
-        phrase = String(returnValue, decimalPlaces) + unit;
+        String formattedString = String(returnValue, decimalPlaces);
+        formattedString.replace(".00", "");
+        phrase = formattedString + unit;
     } else {
         phrase = "-" + _noScale; 
     }
@@ -62,10 +69,13 @@ String Value::getString(int decimal) {
     String unit = _noScale;
     if (_set) {
         if (decimal == 0) {
+            returnValue = round(returnValue);
             String temp_string = String(returnValue, 1);
             phrase = temp_string.substring(0,temp_string.length()-2) + unit;
         } else {
-            phrase = String(returnValue, decimal) + unit;
+            String formattedString = String(returnValue, decimal);
+            formattedString.replace(".00", "");
+            phrase = formattedString + unit;
         }
     } else {
         phrase = "-" + _noScale;

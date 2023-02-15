@@ -21,5 +21,6 @@ int sendToDisplay(const uint8_t *, uint32_t, double);
 int sendToDisplay(const uint8_t *, uint32_t, double, double);
 
 int sendToDisplay(const uint8_t *, uint32_t, double, double, double);
+int sendToDisplay(const uint8_t *, uint32_t, double, double, double, double);
 
 #endif /* sendHelper_h */

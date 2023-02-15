@@ -251,6 +251,9 @@ void loop() {
                 if (message.length == 8) {
                     maxBattTemp = analyzeMessage.getSignal(message.data.uint64, 53, 9, 0.25, -25, false, littleEndian);
                     minBattTemp = analyzeMessage.getSignal(message.data.uint64, 44, 9, 0.25, -25, false, littleEndian);
+                    batteryCoolTarget = analyzeMessage.getSignal(message.data.uint64, 17, 9, 0.25, -25, false, littleEndian);
+                    batteryHeatTarget = analyzeMessage.getSignal(message.data.uint64, 35, 9, 0.25, -25, false, littleEndian);
+
                 }
                 break;
 
@@ -274,6 +277,8 @@ void loop() {
                     if (multiplexor == 0) {
                         nominalFullPackEnergy = analyzeMessage.getSignal(message.data.uint64, 16, 16, 0.02, 0, false, littleEndian);
                         nominalEnergyRemaining = analyzeMessage.getSignal(message.data.uint64, 32, 16, 0.02, 0, false, littleEndian);
+                    } else if (multiplexor == 1) {
+                        energyBuffer = analyzeMessage.getSignal(message.data.uint64, 16, 16, 0.01, 0, false, littleEndian);
                     } else if (multiplexor == 2) {
                         expectedEnergyRemaining = analyzeMessage.getSignal(message.data.uint64, 48, 16, 0.02, 0, false, littleEndian);
                     }
@@ -414,7 +419,7 @@ void loop() {
                     break;
 
                 case 0x312: // BMSthermal
-                    sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp);
+                    sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp, batteryCoolTarget, batteryHeatTarget);
 
                     break;
 
@@ -424,7 +429,7 @@ void loop() {
                     break;
 
                 case 0x352: // BMS_energyStatus
-                    sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy);
+                    sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy, energyBuffer);
 
                     break;
 

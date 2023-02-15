@@ -7,4 +7,5 @@ typedef struct payload {
     double double_value_1;
     double double_value_2;
     double double_value_3;
+    double double_value_4;
 } payload;

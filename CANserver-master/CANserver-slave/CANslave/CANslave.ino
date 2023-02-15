@@ -40,7 +40,7 @@ OLED oled_1;
 // my_queue queue_1;
 
 ezButton page_button(page_button_pin);
-ezButton invert_color_button(invert_color_button_pin);
+ezButton pageBackButton(page_back_button_pin);
 ezButton reset_button(reset_data_button_pin);
 
 static bool isIdle = true;
@@ -51,14 +51,14 @@ static int refreshCount = 0;
 
 // page stuff
 static int start_page = 1;
-const int max_pages = 5;
+const int max_pages = 6;
 static int page = start_page;
 
 unsigned long previouscycle = 0;
 unsigned long update_previouscycle = 0;
 
 static int interval = 1000;
-static int update_interval = 100;
+static int update_interval = 150;
 
 // graph
 static int graph_last_update = 0;
@@ -94,9 +94,9 @@ bool was_button_pressed(String button) {
     bool pressed = false;
     if (button == "reset") {
         pressed = reset_button.isPressed();
-    } else if (button == "invert") {
-        pressed = invert_color_button.isPressed();
-    } else if (button == "page") {
+    } else if (button == "pagedown") {
+        pressed = pageBackButton.isPressed();
+    } else if (button == "pageup") {
         pressed = page_button.isPressed();
     }
     return pressed;
@@ -109,6 +109,9 @@ void handle_received_data(payload payload) {
             minBattTemp.setValue(payload.double_value_1 * (9/5) + 32.0);
             maxBattTemp.setValue(payload.double_value_2 * (9/5) + 32.0);
             avgBattTemp.setValue((minBattTemp.getValue() + maxBattTemp.getValue()) / 2.0);
+
+            batteryCoolTarget.setValue(payload.double_value_3 * (9/5) + 32.00);
+            batteryHeatTarget.setValue(payload.double_value_4 * (9/5) + 32.00);
 
             break;
 
@@ -188,8 +191,9 @@ void handle_received_data(payload payload) {
             break;
 
         case 0x352 : // bms_energystatus
-            nominalEnergyRemaining.setValue(payload.double_value_1 * 1000.0);
-            nominalFullPackEnergy.setValue(payload.double_value_2 * 1000.0);
+            nominalEnergyRemaining.setValue(payload.double_value_1);
+            nominalFullPackEnergy.setValue(payload.double_value_2);
+            energyBuffer.setValue(payload.double_value_3);
 
             break;
 
@@ -295,13 +299,6 @@ void setup() {
     }
 
     Serial.println("Finished with setup!");
-
-    // uint64_t var = 0xD3A0000002306B0C;
-    // Serial.println(PriUint64<HEX>(var));
-    // // var = var << 2;
-    // uint64_t mask = 0xFFFFFFFF;
-    // var = var & mask;
-    // Serial.println(PriUint64<HEX>(var));
 }
 
 void loop() {
@@ -312,19 +309,24 @@ void loop() {
         last_loop_iters = loop_counter;
     }
 
-    invert_color_button.loop();
+    pageBackButton.loop();
     reset_button.loop();
     page_button.loop();
 
-    if (was_button_pressed("page")) {
+    if (was_button_pressed("pageup")) {
         page = page + 1;
         if (page == max_pages + 1) {
             page = 1; // rollover
-        } 
+        }
+        Serial.println("up Switching page to:" + String(page));
     }
 
-    if (was_button_pressed("invert")) {
-        oled_1.oled_invert_color();
+    if (was_button_pressed("pagedown")) {
+        page = page - 1;
+        if (page == 0) {
+            page = max_pages; // rollover
+        }
+        Serial.println("down Switching page to:" + String(page));
     }
 
     if (was_button_pressed("reset")) {
@@ -338,8 +340,7 @@ void loop() {
         }
 
         if (page == 2) {
-            lastNominalEnergyRemaining = nominalEnergyRemaining.getValue();
-            startOfTripOdometer.resetValue();
+            startOfTripOdometer.setValue(odometer.getValue());
             sampledEnergyCounter.resetValue();
         }
     }
@@ -379,7 +380,7 @@ void loop() {
 
             oled_1.send_to_oled_buffer(0, minBattTemp.getString(0) + " " + maxBattTemp.getString(0));
             oled_1.send_to_oled_buffer(0, "                " + socAVE.getString(1));
-            oled_1.send_to_oled_buffer(1, battPowerClass.getString() + " " + battVoltsClass.getString());
+            oled_1.send_to_oled_buffer(2, battPowerClass.getString() + " " + battVoltsClass.getString());
             // percentageOfBar = log10((double)abs(battPowerClass.getValue())) / log10((double)maxDischargeClass.getValue()); // log10
             // oled_1.drawLine(1, 8, 128, 8);
 
@@ -387,11 +388,10 @@ void loop() {
             if (battPowerClass.isSet() && frontPowerClass.isSet() && rearPowerClass.isSet()) {
                 powerNotFromMotors.setValue((battPowerClass.getValue() - (frontPowerClass.getValue() + rearPowerClass.getValue())));
             }
-            oled_1.send_to_oled_buffer(3, powerNotFromMotors.getString());
-            oled_1.send_to_oled_buffer(4, coolantFlowBatActualClass.getString(0) + " " + coolantFlowPTActualClass.getString(0));
+            oled_1.send_to_oled_buffer(2, "               " + powerNotFromMotors.getString());
+            oled_1.send_to_oled_buffer(6, "      " + coolantFlowBatActualClass.getString(0) + " " + coolantFlowPTActualClass.getString(0));
         
-            oled_1.send_to_oled_buffer(6, maxRegenClass.getString() + " " + maxDischargeClass.getString());
-            oled_1.send_to_oled_buffer(7, nominalEnergyRemaining.getString() + "/" + nominalFullPackEnergy.getString());
+            oled_1.send_to_oled_buffer(7, "     " + maxRegenClass.getString() + " " + maxDischargeClass.getString());
             
             oled_1.oled_update();
         }
@@ -479,6 +479,21 @@ void loop() {
         }
 
         if (page == 6) {
+            oled_1.clearDisplay();
+
+            oled_1.send_to_oled_buffer(0, "Msgs/s  " + String(data_rate));
+
+            oled_1.send_to_oled_buffer(2, "HV Batt ");
+            oled_1.send_to_oled_buffer(3, " Buffer   " + energyBuffer.getString(2));
+            oled_1.send_to_oled_buffer(4, " Cool Tgt " + batteryCoolTarget.getString(0));
+            oled_1.send_to_oled_buffer(5, " Heat Tgt " + batteryHeatTarget.getString(0));
+            oled_1.send_to_oled_buffer(6, " " + nominalEnergyRemaining.getString(2) + "/" + nominalFullPackEnergy.getString(2));
+
+
+            oled_1.oled_update();
+        }
+
+        if (page == 7) {
             if (scd40_data_ready()) {
                 oled_1.clearDisplay();
                 
@@ -492,7 +507,7 @@ void loop() {
             }
         }
 
-        if (page == 6) { // accelerometer stuff
+        if (page == 8) { // accelerometer stuff
             oled_1.clearDisplay();
             
             float accel_x = 0.0;
@@ -533,15 +548,7 @@ void loop() {
             oled_1.oled_update();
         }
 
-        if (page == 7) {
-            oled_1.clearDisplay();
-
-            oled_1.send_to_oled_buffer(1, " Msgs/s  " + String(data_rate));
-
-            oled_1.oled_update();
-        }
-
-        if (page == 8) {
+        if (page == 9) {
             oled_1.clearDisplay();
             oled_1.oled_image(1);
             oled_1.oled_update();

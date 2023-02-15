@@ -27,6 +27,16 @@ void simulate() {
                 battTempPct = 0;
             }
 
+            batteryCoolTarget = batteryCoolTarget + 0.1;
+            if (batteryCoolTarget > 80) {
+                batteryCoolTarget = 0;
+            }
+
+            batteryHeatTarget = batteryHeatTarget + 0.1;
+            if (batteryHeatTarget > 80) {
+                batteryHeatTarget = 0;
+            }
+
             masterUpTime = masterUpTime + 1;
 
             nominalFullPackEnergy = nominalFullPackEnergy + 0.1;
@@ -86,6 +96,10 @@ void simulate() {
             //     battPower = -1000;
             // }
 
+            energyBuffer = energyBuffer + 0.01; 
+            if (energyBuffer > 8.0) {
+                energyBuffer = 0.0;
+            }
             chargeLineCurrent = chargeLineCurrent + 1;
             if (chargeLineCurrent == 99) {
                 chargeLineCurrent = -50;
@@ -158,12 +172,13 @@ void simulate() {
             sendToDisplay(receiverMacAddress, 0x2E5, frontPower, frontPowerLimit);
             sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit);
             sendToDisplay(receiverMacAddress, 0x292, socAVE, battTempPct);
-            sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp);
+            sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp, batteryCoolTarget, batteryHeatTarget);
+
             
             sendToDisplay(receiverMacAddress, 0x383, cabin_temp);
             sendToDisplay(receiverMacAddress, 0x315, rearInverterTemp);
             sendToDisplay(receiverMacAddress, 0x376, frontInverterTemp);
-            sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy);
+            sendToDisplay(receiverMacAddress, 0x352, nominalEnergyRemaining, nominalFullPackEnergy, energyBuffer);
             sendToDisplay(receiverMacAddress, 0x252, maxDischarge, maxRegen);
             
             sendToDisplay(receiverMacAddress, 0x264, chargeLineCurrent, chargeLineVoltage, chargeLinePower);

@@ -8,4 +8,5 @@ typedef struct payload {
     double double_value_1; // 8 bytes
     double double_value_2; // 8 bytes
     double double_value_3; // 8 bytes
+    double double_value_4; // 8 bytes
 } payload;
