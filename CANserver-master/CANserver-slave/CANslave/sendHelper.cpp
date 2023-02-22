@@ -15,12 +15,12 @@ typedef struct struct_message {
     double double_value_3;
 } struct_message;
 
-int sendToDisplay(const uint8_t *receiverMacAddress, uint32_t can_id, int valueToSend1) {
+int sendToDisplay(const uint8_t *receiverMacAddress, uint32_t can_id, double valueToSend1) {
 
     struct_message payload;
 
     payload.can_id = can_id;
-    payload.int_value_1 = valueToSend1;
+    payload.double_value_1 = valueToSend1;
 
     
     esp_err_t result = 0;

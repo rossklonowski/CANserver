@@ -74,6 +74,12 @@ void handle_received_data(payload payload) {
 
             timeSinceLastReceiverPing = 0;
             millisAtLastPing = millis();
+
+            if (payload.double_value_1 == 0.0) {
+                simulation = false;
+            } else {
+                simulation = true;
+            }
         
             break;
     }

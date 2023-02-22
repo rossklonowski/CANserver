@@ -42,6 +42,26 @@ void OLED::send_to_oled_buffer(int row, String line) {
     private_display.println(line);
 }
 
+void OLED::send_to_oled_buffer(int row, String line, String align) {
+    private_display.setTextSize(1);
+    private_display.setCursor(1, (row * 8) + 1);
+    const int LINE = 21;
+    
+    String whitespace = "";
+    if (align == "right") {
+        int numSpaces = LINE - line.length();
+        for (int i = 0; i < numSpaces; i++) {
+            whitespace = whitespace + " ";
+        } 
+    } else if (align == "center") {
+        int numSpaces = (LINE/2) - (line.length()/2);
+        for (int i = 0; i < numSpaces; i++) {
+            whitespace = whitespace + " ";
+        }       
+    }
+    private_display.println(whitespace + line);
+}
+
 void OLED::send_to_oled_buffer(int row, int text_size, String line) {
     private_display.setTextSize(text_size);
 	int line_spacing = 8;

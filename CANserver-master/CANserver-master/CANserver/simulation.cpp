@@ -39,10 +39,11 @@ void simulate() {
 
             masterUpTime = masterUpTime + 1;
 
-            nominalFullPackEnergy = nominalFullPackEnergy + 0.1;
-            if (nominalFullPackEnergy > 80) {
-                nominalFullPackEnergy = 0;
-            }
+            nominalFullPackEnergy = 75;
+            // nominalFullPackEnergy = nominalFullPackEnergy + 0.1;
+            // if (nominalFullPackEnergy > 80) {
+            //     nominalFullPackEnergy = 0;
+            // }
 
             frontInverterTemp = frontInverterTemp + 0.1;
             if (frontInverterTemp > 80) {
@@ -173,7 +174,6 @@ void simulate() {
             sendToDisplay(receiverMacAddress, 0x266, rearPower, rearPowerLimit);
             sendToDisplay(receiverMacAddress, 0x292, socAVE, battTempPct);
             sendToDisplay(receiverMacAddress, 0x312, minBattTemp, maxBattTemp, batteryCoolTarget, batteryHeatTarget);
-
             
             sendToDisplay(receiverMacAddress, 0x383, cabin_temp);
             sendToDisplay(receiverMacAddress, 0x315, rearInverterTemp);

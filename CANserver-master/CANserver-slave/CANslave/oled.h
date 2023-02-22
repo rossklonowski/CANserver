@@ -42,6 +42,8 @@ class OLED {
 
         void send_to_oled_buffer(int, int, String);
 
+        void send_to_oled_buffer(int , String, String);
+
         void send_to_oled_buffer(int, int, int, String);
 
         void write_oled(int, int, String);

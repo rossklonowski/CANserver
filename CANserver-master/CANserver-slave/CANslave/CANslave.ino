@@ -8,7 +8,6 @@
 #include <WiFi.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <ezButton.h>
 // display stuff
 #include <LiquidCrystal.h>
@@ -21,15 +20,12 @@
 #include "SCD40.h"
 // OLED
 #include <SPI.h>
-
 #include "payload.h"
 #include "carDataVariables.h"
 #include "display_settings.h"
 #include "program_settings.h"
 #include "queue.h"
-
 #include "ProgressBar.h"
-
 #include "PriUint64.h"
 
 
@@ -37,7 +33,6 @@
 #define LED2 2    // onboard blue LED
 
 OLED oled_1;
-// my_queue queue_1;
 
 ezButton page_button(page_button_pin);
 ezButton pageBackButton(page_back_button_pin);
@@ -48,6 +43,9 @@ static bool isFirstRecv = true;
 static bool debug = false;
 static int lastCount = 0;
 static int refreshCount = 0;
+static double simulation = 0.0;
+
+static int switchPin = 12;
 
 // page stuff
 static int start_page = 1;
@@ -227,7 +225,18 @@ void handle_received_data(payload payload) {
             // send response that I am up
             digitalWrite(LED2, LOW);
             
-            sendToDisplay(masterMacAddress, 0x3E6, 1);
+
+            Serial.println(digitalRead(switchPin));
+            {
+                double value = 0.0;
+                if (digitalRead(switchPin) == 1) {
+                    value = 1.0;
+                } else {
+                    value = 0.0;
+                }
+                Serial.println(value);
+                sendToDisplay(masterMacAddress, 0x3E6, value);
+            }
 
             break;
 
@@ -297,6 +306,9 @@ void setup() {
         Serial.println("Failed to add peer");
         return;
     }
+
+    // simulation switch
+    pinMode(switchPin, INPUT);  // sets the digital pin 13 as output
 
     Serial.println("Finished with setup!");
 }
@@ -373,25 +385,34 @@ void loop() {
     if (update_currentMillis - update_previouscycle >= update_interval) {
         update_previouscycle = update_currentMillis;
 
-        String unit_space = " ";
+        if (tripDistance.getValue() != 0.0) {
+            efficiency.setValue((sampledEnergyCounter.getValue() / tripDistance.getValue()) * 1000.00);
+        }
+
+        powerNotFromMotors.setValue((battPowerClass.getValue() - (frontPowerClass.getValue() + rearPowerClass.getValue())));
+        
+        if (efficiency.isSet() & nominalFullPackEnergy.isSet() & energyBuffer.isSet()) {
+            rangeBasedOnEfficiency.setValue( (1.0 / efficiency.getValue()) * (nominalFullPackEnergy.getValue() + energyBuffer.getValue()) );
+        }
+        
+        tripDistance.setValue(odometer.getValue() - startOfTripOdometer.getValue());
 
         if (page == 1) {
             oled_1.clearDisplay();
 
             oled_1.send_to_oled_buffer(0, minBattTemp.getString(0) + " " + maxBattTemp.getString(0));
-            oled_1.send_to_oled_buffer(0, "                " + socAVE.getString(1));
-            oled_1.send_to_oled_buffer(2, battPowerClass.getString() + " " + battVoltsClass.getString());
-            // percentageOfBar = log10((double)abs(battPowerClass.getValue())) / log10((double)maxDischargeClass.getValue()); // log10
-            // oled_1.drawLine(1, 8, 128, 8);
+            oled_1.send_to_oled_buffer(0, socAVE.getString(1), "right");
+            oled_1.send_to_oled_buffer(1, battPowerClass.getString());
+            oled_1.send_to_oled_buffer(1, powerNotFromMotors.getString(), "right");
 
+            oled_1.send_to_oled_buffer(3, "  " + efficiency.getString(0));
+            oled_1.send_to_oled_buffer(3, "            " + sampledEnergyCounter.getString(2));
+            oled_1.send_to_oled_buffer(4, "            " + rangeBasedOnEfficiency.getString(0));
 
-            if (battPowerClass.isSet() && frontPowerClass.isSet() && rearPowerClass.isSet()) {
-                powerNotFromMotors.setValue((battPowerClass.getValue() - (frontPowerClass.getValue() + rearPowerClass.getValue())));
-            }
-            oled_1.send_to_oled_buffer(2, "               " + powerNotFromMotors.getString());
-            oled_1.send_to_oled_buffer(6, "      " + coolantFlowBatActualClass.getString(0) + " " + coolantFlowPTActualClass.getString(0));
-        
-            oled_1.send_to_oled_buffer(7, "     " + maxRegenClass.getString() + " " + maxDischargeClass.getString());
+            oled_1.send_to_oled_buffer(6, coolantFlowBatActualClass.getString(0) + " " + tempCoolantBatInletClass.getString(0));
+            oled_1.send_to_oled_buffer(6, coolantFlowPTActualClass.getString(0) + " " + tempCoolantPTInletClass.getString(0), "right");
+            oled_1.send_to_oled_buffer(7, maxRegenClass.getString());
+            oled_1.send_to_oled_buffer(7, maxDischargeClass.getString(), "right");
             
             oled_1.oled_update();
         }
@@ -400,18 +421,9 @@ void loop() {
             oled_1.clearDisplay();
 
             oled_1.send_to_oled_buffer(0, "Trip");
-
-            tripDistance.setValue(odometer.getValue() - startOfTripOdometer.getValue());
-
             oled_1.send_to_oled_buffer(1, " " + tripDistance.getString(2));
-            
             oled_1.send_to_oled_buffer(2, " " + sampledEnergyCounter.getString(2));
-            
-            if (tripDistance.getValue() != 0.0) {
-                efficiency.setValue((sampledEnergyCounter.getValue() / tripDistance.getValue()) * 1000.00);
-            }
             oled_1.send_to_oled_buffer(3, " " + efficiency.getString(0));
-
             oled_1.send_to_oled_buffer(6, "Odometer");
             oled_1.send_to_oled_buffer(7, " " + odometer.getString(2));
             
@@ -425,7 +437,6 @@ void loop() {
             oled_1.send_to_oled_buffer(0, "Motors ");
             oled_1.send_to_oled_buffer(1, " Front  " + frontPowerClass.getString());
             oled_1.send_to_oled_buffer(2, "        " + frontInverterTempClass.getString());
-            
             oled_1.send_to_oled_buffer(4, " Rear   " + rearPowerClass.getString());
             oled_1.send_to_oled_buffer(5, "        " + rearInverterTempClass.getString());
             
@@ -436,15 +447,20 @@ void loop() {
         if (page == 4) {
             oled_1.clearDisplay();
 
-            oled_1.send_to_oled_buffer(0, "Charger");
-            oled_1.send_to_oled_buffer(0, "           Efficiency");
-            oled_1.send_to_oled_buffer(1, "            " + battPowerClass.getString());
-            oled_1.send_to_oled_buffer(2, "            " + chargerEfficiency.getString(0));
-            oled_1.send_to_oled_buffer(1, " " + chargeLinePowerClass.getString());
-            oled_1.send_to_oled_buffer(2, " " + chargeLineVoltageClass.getString());
-            oled_1.send_to_oled_buffer(3, " " + chargeLineCurrentClass.getString());
-            oled_1.send_to_oled_buffer(4, "     Temp " + avgBattTemp.getString());
-            oled_1.send_to_oled_buffer(6, "     SoC  " + socAVE.getString(1));
+            oled_1.send_to_oled_buffer(0, " Charger");
+            oled_1.send_to_oled_buffer(0, "          Efficiency ");
+            if (chargeLineVoltageClass.getValue() > 5) {
+                oled_1.send_to_oled_buffer(2, chargerEfficiency.getString(0), "right");
+                oled_1.send_to_oled_buffer(1, battPowerClass.getString(), "right");
+            } else {
+                oled_1.send_to_oled_buffer(1, String("-w"), "right");
+                oled_1.send_to_oled_buffer(2, String("-%"), "right");
+            }
+            oled_1.send_to_oled_buffer(1, chargeLinePowerClass.getString());
+            oled_1.send_to_oled_buffer(2, chargeLineVoltageClass.getString());
+            oled_1.send_to_oled_buffer(3, chargeLineCurrentClass.getString());
+            oled_1.send_to_oled_buffer(4, "Temp " + avgBattTemp.getString());
+            oled_1.send_to_oled_buffer(6, "SoC  " + socAVE.getString(1));
 
             ProgressBar prog1(1, 43, 126, 3, false);
             if (battTempPct.isSet()) {
@@ -485,8 +501,6 @@ void loop() {
 
             oled_1.send_to_oled_buffer(2, "HV Batt ");
             oled_1.send_to_oled_buffer(3, " Buffer   " + energyBuffer.getString(2));
-            oled_1.send_to_oled_buffer(4, " Cool Tgt " + batteryCoolTarget.getString(0));
-            oled_1.send_to_oled_buffer(5, " Heat Tgt " + batteryHeatTarget.getString(0));
             oled_1.send_to_oled_buffer(6, " " + nominalEnergyRemaining.getString(2) + "/" + nominalFullPackEnergy.getString(2));
 
 
@@ -499,9 +513,9 @@ void loop() {
                 
                 scd40_get_data(c02, temp_f, humidity);
                 oled_1.send_to_oled_buffer(0, "SCD40");
-                oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + unit_space + "F");
-                oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + unit_space + "%");
-                oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + unit_space + "ppm");
+                oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + "F");
+                oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + "%");
+                oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + "ppm");
                 
                 oled_1.oled_update();
             }
