@@ -49,7 +49,7 @@ static int switchPin = 12;
 
 // page stuff
 static int start_page = 1;
-const int max_pages = 6;
+const int max_pages = 11;
 static int page = start_page;
 
 unsigned long previouscycle = 0;
@@ -262,7 +262,6 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
 void setup() {
     Serial.begin(115200);
-    delay(200);
     Serial.println("Starting Setup...");
 
     pinMode(LED2, OUTPUT); // configure blue LED
@@ -274,10 +273,10 @@ void setup() {
     // setupBarGraphs();
     // displayLoadingAnimationBarGraph();    
 
-    scd40_setup();
+    // scd40_setup();
 
     // Accel
-    accel_setup();
+    // accel_setup();
 
     oled_1.setupOLED();
  
@@ -391,8 +390,8 @@ void loop() {
 
         powerNotFromMotors.setValue((battPowerClass.getValue() - (frontPowerClass.getValue() + rearPowerClass.getValue())));
         
-        if (efficiency.isSet() & nominalFullPackEnergy.isSet() & energyBuffer.isSet()) {
-            rangeBasedOnEfficiency.setValue( (1.0 / efficiency.getValue()) * (nominalFullPackEnergy.getValue() + energyBuffer.getValue()) );
+        if (efficiency.isSet() && nominalFullPackEnergy.isSet() && energyBuffer.isSet()) {
+            rangeBasedOnEfficiency.setValue( (1000.0 / efficiency.getValue()) * (nominalFullPackEnergy.getValue() + energyBuffer.getValue()) );
         }
         
         tripDistance.setValue(odometer.getValue() - startOfTripOdometer.getValue());
@@ -405,7 +404,9 @@ void loop() {
             oled_1.send_to_oled_buffer(1, battPowerClass.getString());
             oled_1.send_to_oled_buffer(1, powerNotFromMotors.getString(), "right");
 
-            oled_1.send_to_oled_buffer(3, "  " + efficiency.getString(0));
+            oled_1.send_to_oled_buffer(3, "  " + tripDistance.getString(2));
+            oled_1.send_to_oled_buffer(4, "  " + efficiency.getString(0));
+
             oled_1.send_to_oled_buffer(3, "            " + sampledEnergyCounter.getString(2));
             oled_1.send_to_oled_buffer(4, "            " + rangeBasedOnEfficiency.getString(0));
 
@@ -477,95 +478,103 @@ void loop() {
             oled_1.oled_update();
         }
 
-        // things that don't change much
         if (page == 5) {
             oled_1.clearDisplay();
-            
-            oled_1.send_to_oled_buffer(0, "Temps");
-            oled_1.send_to_oled_buffer(1, "  Coolant");
-            oled_1.send_to_oled_buffer(2, "    BT " + tempCoolantBatInletClass.getString());
-            oled_1.send_to_oled_buffer(3, "    PT " + tempCoolantPTInletClass.getString());
-            oled_1.send_to_oled_buffer(4, "  Batt " + minBattTemp.getString() + " " + maxBattTemp.getString());
-            oled_1.send_to_oled_buffer(5, "  Motors ");
-            oled_1.send_to_oled_buffer(6, "     F " + frontInverterTempClass.getString());
-            oled_1.send_to_oled_buffer(7, "     R " + rearInverterTempClass.getString());
-
-            
+            oled_1.oled_image(0);
             oled_1.oled_update();
         }
 
         if (page == 6) {
             oled_1.clearDisplay();
-
-            oled_1.send_to_oled_buffer(0, "Msgs/s  " + String(data_rate));
-
-            oled_1.send_to_oled_buffer(2, "HV Batt ");
-            oled_1.send_to_oled_buffer(3, " Buffer   " + energyBuffer.getString(2));
-            oled_1.send_to_oled_buffer(6, " " + nominalEnergyRemaining.getString(2) + "/" + nominalFullPackEnergy.getString(2));
-
-
+            oled_1.oled_image(1);
             oled_1.oled_update();
         }
 
         if (page == 7) {
-            if (scd40_data_ready()) {
-                oled_1.clearDisplay();
-                
-                scd40_get_data(c02, temp_f, humidity);
-                oled_1.send_to_oled_buffer(0, "SCD40");
-                oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + "F");
-                oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + "%");
-                oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + "ppm");
-                
-                oled_1.oled_update();
-            }
+            oled_1.clearDisplay();
+            oled_1.oled_image(2);
+            oled_1.oled_update();
         }
 
-        if (page == 8) { // accelerometer stuff
+        if (page == 8) {
             oled_1.clearDisplay();
-            
-            float accel_x = 0.0;
-            float accel_y = 0.0;
-            float accel_z = 0.0;
-            accel_get_g_force(accel_x, accel_y, accel_z);
-            accel_vector = sqrt( (accel_x*accel_x) + (accel_y*accel_y) + (accel_z*accel_z) );
-            accel_vector = accel_vector - accel_offset;
-            if (accel_vector > max_accel_vector) {
-                max_accel_vector = accel_vector;
-            }
-            
-            float g_x = accel_x / 9.81;
-            float g_y = accel_x / 9.81;
-            float g_z = accel_x / 9.81;
-            float g_vector = accel_vector / 9.81;
-
-            if (g_vector > max_g_vector) {
-                max_g_vector = g_vector;
-            }
-            
-            String sign1 = (accel_x >= 0) ? "+" : "";
-            String sign2 = (g_x >= 0) ? "+" : "";
-            String sign3 = (accel_y >= 0) ? "+" : "";
-            String sign4 = (g_y >= 0) ? "+" : "";
-            String sign5 = (accel_z >= 0) ? "+" : "";
-            String sign6 = (g_z >= 0) ? "+" : "";
-            String sign7 = (accel_vector >= 0) ? "+" : "";
-            String sign8 = (max_accel_vector >= 0) ? "+" : "";
-            String sign9 = (g_vector >= 0) ? "+" : "";
-            String sign10 = (max_g_vector >= 0) ? "+" : "";
-
-            oled_1.send_to_oled_buffer(0, 1, 1, "" + String(accel_vector, 1) + "m/s^2");
-            oled_1.send_to_oled_buffer(1, 2, 9, "" + String(max_accel_vector, 1) + "m/s^2");
-            oled_1.send_to_oled_buffer(2, 1, 24, "" + String(g_vector, 1) + "g");
-            oled_1.send_to_oled_buffer(3, 2, 32, "" + String(max_g_vector, 1) + "g");
-
+            oled_1.oled_image(3);
             oled_1.oled_update();
         }
 
         if (page == 9) {
             oled_1.clearDisplay();
-            oled_1.oled_image(1);
+            oled_1.oled_image(4);
             oled_1.oled_update();
         }
+
+        if (page == 10) {
+            oled_1.clearDisplay();
+            oled_1.oled_image(5);
+            oled_1.oled_update();
+        }
+
+        if (page == 11) {
+            oled_1.clearDisplay();
+            oled_1.oled_image(6);
+            oled_1.oled_update();
+        }
+
+        // if (page == 6) { // accelerometer stuff
+        //     oled_1.clearDisplay();
+            
+        //     float accel_x = 0.0;
+        //     float accel_y = 0.0;
+        //     float accel_z = 0.0;
+        //     accel_get_g_force(accel_x, accel_y, accel_z);
+        //     accel_vector = sqrt( (accel_x*accel_x) + (accel_y*accel_y) + (accel_z*accel_z) );
+        //     accel_vector = accel_vector - accel_offset;
+        //     if (accel_vector > max_accel_vector) {
+        //         max_accel_vector = accel_vector;
+        //     }
+            
+        //     float g_x = accel_x / 9.81;
+        //     float g_y = accel_x / 9.81;
+        //     float g_z = accel_x / 9.81;
+        //     float g_vector = accel_vector / 9.81;
+
+        //     if (g_vector > max_g_vector) {
+        //         max_g_vector = g_vector;
+        //     }
+            
+        //     String sign1 = (accel_x >= 0) ? "+" : "";
+        //     String sign2 = (g_x >= 0) ? "+" : "";
+        //     String sign3 = (accel_y >= 0) ? "+" : "";
+        //     String sign4 = (g_y >= 0) ? "+" : "";
+        //     String sign5 = (accel_z >= 0) ? "+" : "";
+        //     String sign6 = (g_z >= 0) ? "+" : "";
+        //     String sign7 = (accel_vector >= 0) ? "+" : "";
+        //     String sign8 = (max_accel_vector >= 0) ? "+" : "";
+        //     String sign9 = (g_vector >= 0) ? "+" : "";
+        //     String sign10 = (max_g_vector >= 0) ? "+" : "";
+
+        //     oled_1.send_to_oled_buffer(0, 1, 1, "" + String(accel_vector, 1) + "m/s^2");
+        //     oled_1.send_to_oled_buffer(1, 2, 9, "" + String(max_accel_vector, 1) + "m/s^2");
+        //     oled_1.send_to_oled_buffer(2, 1, 24, "" + String(g_vector, 1) + "g");
+        //     oled_1.send_to_oled_buffer(3, 2, 32, "" + String(max_g_vector, 1) + "g");
+
+        //     oled_1.oled_update();
+        // }
+
+        // if (page == 7) {
+        //     if (scd40IsSetup()) {
+        //         if (scd40_data_ready()) {
+        //             oled_1.clearDisplay();
+                    
+        //             scd40_get_data(c02, temp_f, humidity);
+        //             oled_1.send_to_oled_buffer(0, "SCD40");
+        //             oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + "F");
+        //             oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + "%");
+        //             oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + "ppm");
+                    
+        //             oled_1.oled_update();
+        //         }
+        //     }
+        // }
     }   
 }

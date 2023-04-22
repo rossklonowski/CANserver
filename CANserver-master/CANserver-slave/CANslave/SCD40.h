@@ -12,5 +12,7 @@ bool scd40_data_ready();
 
 void scd40_get_data(float&, float&, float&);
 
+bool scd40IsSetup();
+
 
 #endif /* scd40_h */

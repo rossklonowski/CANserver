@@ -12,13 +12,13 @@
 #include "SCD40.h"
 
 SensirionI2CScd4x scd4x;
+bool isSetup = false;
 
 void scd40_setup() {
-
     scd4x.begin(Wire);
 	scd4x.stopPeriodicMeasurement(); // stop any previous measurements
-	// print_serial();
     scd4x.startPeriodicMeasurement(); // start periodic measurements
+	isSetup = true;
 }
 
 bool scd40_data_ready() {
@@ -46,15 +46,15 @@ void scd40_get_data(float &c02, float &temp_c, float &humidity) {
 		if (error) {
 			Serial.print("Error trying to execute readMeasurement(): ");
 			errorToString(error, errorMessage, 256);
-			// Serial.println(errorMessage);
 		} else {
 			float temp_f = (temp_c_local * 9/5) + 32;
-			// Serial.println("C02:         " + String(co2_local) + "ppm");
-			// Serial.println("Temperature: " + String(temp_f) + "F");
-			// Serial.println("Humidity:    " + String(humidity_local) + "%");
 			temp_c = temp_f; 
 			humidity = humidity_local;
 			c02 = co2_local; 
 		}
 	}
+}
+
+bool scd40IsSetup() {
+	return isSetup;
 }
