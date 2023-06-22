@@ -123,6 +123,78 @@ void OLED::draw_axis() {
     private_display.drawLine(pixels_from_side, pixels_from_side, OLED_WIDTH - pixels_from_side, pixels_from_side, WHITE); // x axis
 }
 
+void OLED::draw_page_status(int page, int total_pages) {
+
+    int16_t box_length = 20;
+    int16_t box_height = 5;
+
+    int16_t offset_from_top = 64 - 4;
+
+    // box corners
+    int16_t upper_left_x = (128/2) - (box_length/2);
+    int16_t upper_left_y = offset_from_top;
+
+    int16_t upper_right_x = upper_left_x + box_length;
+    int16_t upper_right_y = upper_left_y;
+
+    int16_t lower_left_x = upper_left_x;
+    int16_t lower_left_y = upper_left_y - box_height;
+
+    int16_t lower_right_x = upper_left_x + box_length;
+    int16_t lower_right_y = upper_left_y - box_height;
+
+    // dots
+    int16_t first_dot_offset_x = 2;
+    int16_t dot_y = upper_left_y - (box_height / 2);
+
+    int16_t dot_space_multiplier = 1;
+
+    int16_t dot_x_array[5];
+
+    int16_t dot_1_x = first_dot_offset_x + upper_left_x + (2 * dot_space_multiplier);
+    int16_t dot_1_y = dot_y;
+    dot_x_array[0] = dot_1_x;
+
+    
+    int16_t dot_2_x = first_dot_offset_x + upper_left_x + (5 * dot_space_multiplier);
+    int16_t dot_2_y = dot_y;
+    dot_x_array[1] = dot_2_x;
+    
+    int16_t dot_3_x = first_dot_offset_x + upper_left_x + (8 * dot_space_multiplier);
+    int16_t dot_3_y = dot_y;
+    dot_x_array[2] = dot_3_x;
+    
+    int16_t dot_4_x = first_dot_offset_x + upper_left_x + (11 * dot_space_multiplier);
+    int16_t dot_4_y = dot_y;
+    dot_x_array[3] = dot_4_x;    
+
+    int16_t dot_5_x = first_dot_offset_x + upper_left_x + (14 * dot_space_multiplier);
+    int16_t dot_5_y = dot_y;
+    dot_x_array[4] = dot_5_x;
+
+
+    int16_t active_dot_y_offset = 1;
+
+    int16_t active_dot_x = dot_x_array[page-1];
+    int16_t active_dot_y = dot_1_y - active_dot_y_offset;
+
+    private_display.drawLine(dot_1_x, dot_1_y, dot_1_x, dot_1_y, WHITE);
+    private_display.drawLine(dot_2_x, dot_2_y, dot_2_x, dot_2_y, WHITE);
+    private_display.drawLine(dot_3_x, dot_3_y, dot_3_x, dot_3_y, WHITE);
+    private_display.drawLine(dot_4_x, dot_4_y, dot_4_x, dot_4_y, WHITE);
+    private_display.drawLine(dot_5_x, dot_5_y, dot_5_x, dot_5_y, WHITE);
+
+    private_display.drawLine(active_dot_x, active_dot_y, active_dot_x, active_dot_y, WHITE);
+
+
+    // private_display.drawLine(upper_left_x, upper_left_y, upper_right_x, upper_right_y, WHITE); // top line
+    // private_display.drawLine(upper_right_x, upper_right_y, lower_right_x, lower_right_y, WHITE); // right line
+    // private_display.drawLine(upper_left_x, upper_left_y, lower_left_x, lower_left_y, WHITE); // left line
+    // private_display.drawLine(lower_left_x, lower_left_y, lower_right_x, lower_right_y, WHITE); // bottom line
+    
+    private_display.display();
+}
+
 void OLED::update_graph(my_queue& my_queue) {
     
     int bars = my_queue.get_size();

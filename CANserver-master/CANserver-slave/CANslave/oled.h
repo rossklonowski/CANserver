@@ -59,6 +59,8 @@ class OLED {
         // graph stuff
         void draw_axis();
 
+        void draw_page_status(int, int);
+
         void update_graph(my_queue&);
 
         void simulate_graph();

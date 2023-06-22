@@ -49,7 +49,7 @@ static int switchPin = 12;
 
 // page stuff
 static int start_page = 1;
-const int max_pages = 11;
+const int max_pages = 5;
 static int page = start_page;
 
 unsigned long previouscycle = 0;
@@ -268,7 +268,7 @@ void setup() {
     digitalWrite(LED2, HIGH);
 
     // I2C needed for C02 and Accelerometer
-    Wire.begin(I2C_SDA, I2C_SCL);
+    // Wire.begin(I2C_SDA, I2C_SCL);
 
     // setupBarGraphs();
     // displayLoadingAnimationBarGraph();    
@@ -279,7 +279,7 @@ void setup() {
     // accel_setup();
 
     oled_1.setupOLED();
- 
+
     // put esp32 in WIFI station mode
     WiFi.mode(WIFI_STA);
     // Serial.print("Mac Address in Station: ");
@@ -484,97 +484,98 @@ void loop() {
             oled_1.oled_update();
         }
 
-        if (page == 6) {
-            oled_1.clearDisplay();
-            oled_1.oled_image(1);
-            oled_1.oled_update();
-        }
-
-        if (page == 7) {
-            oled_1.clearDisplay();
-            oled_1.oled_image(2);
-            oled_1.oled_update();
-        }
-
-        if (page == 8) {
-            oled_1.clearDisplay();
-            oled_1.oled_image(3);
-            oled_1.oled_update();
-        }
-
-        if (page == 9) {
-            oled_1.clearDisplay();
-            oled_1.oled_image(4);
-            oled_1.oled_update();
-        }
-
-        if (page == 10) {
-            oled_1.clearDisplay();
-            oled_1.oled_image(5);
-            oled_1.oled_update();
-        }
-
-        if (page == 11) {
-            oled_1.clearDisplay();
-            oled_1.oled_image(6);
-            oled_1.oled_update();
-        }
-
-        // if (page == 6) { // accelerometer stuff
+        // if (page == 6) {
         //     oled_1.clearDisplay();
-            
-        //     float accel_x = 0.0;
-        //     float accel_y = 0.0;
-        //     float accel_z = 0.0;
-        //     accel_get_g_force(accel_x, accel_y, accel_z);
-        //     accel_vector = sqrt( (accel_x*accel_x) + (accel_y*accel_y) + (accel_z*accel_z) );
-        //     accel_vector = accel_vector - accel_offset;
-        //     if (accel_vector > max_accel_vector) {
-        //         max_accel_vector = accel_vector;
-        //     }
-            
-        //     float g_x = accel_x / 9.81;
-        //     float g_y = accel_x / 9.81;
-        //     float g_z = accel_x / 9.81;
-        //     float g_vector = accel_vector / 9.81;
-
-        //     if (g_vector > max_g_vector) {
-        //         max_g_vector = g_vector;
-        //     }
-            
-        //     String sign1 = (accel_x >= 0) ? "+" : "";
-        //     String sign2 = (g_x >= 0) ? "+" : "";
-        //     String sign3 = (accel_y >= 0) ? "+" : "";
-        //     String sign4 = (g_y >= 0) ? "+" : "";
-        //     String sign5 = (accel_z >= 0) ? "+" : "";
-        //     String sign6 = (g_z >= 0) ? "+" : "";
-        //     String sign7 = (accel_vector >= 0) ? "+" : "";
-        //     String sign8 = (max_accel_vector >= 0) ? "+" : "";
-        //     String sign9 = (g_vector >= 0) ? "+" : "";
-        //     String sign10 = (max_g_vector >= 0) ? "+" : "";
-
-        //     oled_1.send_to_oled_buffer(0, 1, 1, "" + String(accel_vector, 1) + "m/s^2");
-        //     oled_1.send_to_oled_buffer(1, 2, 9, "" + String(max_accel_vector, 1) + "m/s^2");
-        //     oled_1.send_to_oled_buffer(2, 1, 24, "" + String(g_vector, 1) + "g");
-        //     oled_1.send_to_oled_buffer(3, 2, 32, "" + String(max_g_vector, 1) + "g");
-
+        //     oled_1.oled_image(1);
         //     oled_1.oled_update();
         // }
 
         // if (page == 7) {
-        //     if (scd40IsSetup()) {
-        //         if (scd40_data_ready()) {
-        //             oled_1.clearDisplay();
-                    
-        //             scd40_get_data(c02, temp_f, humidity);
-        //             oled_1.send_to_oled_buffer(0, "SCD40");
-        //             oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + "F");
-        //             oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + "%");
-        //             oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + "ppm");
-                    
-        //             oled_1.oled_update();
-        //         }
-        //     }
+        //     oled_1.clearDisplay();
+        //     oled_1.oled_image(2);
+        //     oled_1.oled_update();
         // }
+
+        // if (page == 8) {
+        //     oled_1.clearDisplay();
+        //     oled_1.oled_image(3);
+        //     oled_1.oled_update();
+        // }
+
+        // if (page == 9) {
+        //     oled_1.clearDisplay();
+        //     oled_1.oled_image(4);
+        //     oled_1.oled_update();
+        // }
+
+        // if (page == 10) {
+        //     oled_1.clearDisplay();
+        //     oled_1.oled_image(5);
+        //     oled_1.oled_update();
+        // }
+
+        // if (page == 11) {
+        //     oled_1.clearDisplay();
+        //     oled_1.oled_image(6);
+        //     oled_1.oled_update();
+        // }
+
+        // // if (page == 6) { // accelerometer stuff
+        // //     oled_1.clearDisplay();
+            
+        // //     float accel_x = 0.0;
+        // //     float accel_y = 0.0;
+        // //     float accel_z = 0.0;
+        // //     accel_get_g_force(accel_x, accel_y, accel_z);
+        // //     accel_vector = sqrt( (accel_x*accel_x) + (accel_y*accel_y) + (accel_z*accel_z) );
+        // //     accel_vector = accel_vector - accel_offset;
+        // //     if (accel_vector > max_accel_vector) {
+        // //         max_accel_vector = accel_vector;
+        // //     }
+            
+        // //     float g_x = accel_x / 9.81;
+        // //     float g_y = accel_x / 9.81;
+        // //     float g_z = accel_x / 9.81;
+        // //     float g_vector = accel_vector / 9.81;
+
+        // //     if (g_vector > max_g_vector) {
+        // //         max_g_vector = g_vector;
+        // //     }
+            
+        // //     String sign1 = (accel_x >= 0) ? "+" : "";
+        // //     String sign2 = (g_x >= 0) ? "+" : "";
+        // //     String sign3 = (accel_y >= 0) ? "+" : "";
+        // //     String sign4 = (g_y >= 0) ? "+" : "";
+        // //     String sign5 = (accel_z >= 0) ? "+" : "";
+        // //     String sign6 = (g_z >= 0) ? "+" : "";
+        // //     String sign7 = (accel_vector >= 0) ? "+" : "";
+        // //     String sign8 = (max_accel_vector >= 0) ? "+" : "";
+        // //     String sign9 = (g_vector >= 0) ? "+" : "";
+        // //     String sign10 = (max_g_vector >= 0) ? "+" : "";
+
+        // //     oled_1.send_to_oled_buffer(0, 1, 1, "" + String(accel_vector, 1) + "m/s^2");
+        // //     oled_1.send_to_oled_buffer(1, 2, 9, "" + String(max_accel_vector, 1) + "m/s^2");
+        // //     oled_1.send_to_oled_buffer(2, 1, 24, "" + String(g_vector, 1) + "g");
+        // //     oled_1.send_to_oled_buffer(3, 2, 32, "" + String(max_g_vector, 1) + "g");
+
+        // //     oled_1.oled_update();
+        // // }
+
+        // // if (page == 7) {
+        // //     if (scd40IsSetup()) {
+        // //         if (scd40_data_ready()) {
+        // //             oled_1.clearDisplay();
+                    
+        // //             scd40_get_data(c02, temp_f, humidity);
+        // //             oled_1.send_to_oled_buffer(0, "SCD40");
+        // //             oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + "F");
+        // //             oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + "%");
+        // //             oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + "ppm");
+                    
+        // //             oled_1.oled_update();
+        // //         }
+        // //     }
+        // // }
+        oled_1.draw_page_status(page, max_pages);
     }   
 }
