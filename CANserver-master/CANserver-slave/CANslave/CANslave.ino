@@ -301,8 +301,11 @@ void setup() {
     peerInfo.channel = 0;  
     peerInfo.encrypt = false;
 
+    esp_now_peer_info_t peerInfo2;
+    peerInfo2.channel = 0;  
+    peerInfo2.encrypt = false;
+
     memcpy(peerInfo.peer_addr, masterMacAddress, 6);
-    // add peer        
     if (esp_now_add_peer(&peerInfo) != ESP_OK){
         Serial.println("Failed to add peer");
         return;
@@ -315,9 +318,8 @@ void setup() {
     peerInfo.channel = 0;  
     peerInfo.encrypt = false;
 
-    memcpy(peerInfo.peer_addr, buttonMacAddress, 6);
-    // add peer        
-    if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    memcpy(peerInfo2.peer_addr, buttonMacAddress, 6);
+    if (esp_now_add_peer(&peerInfo2) != ESP_OK){
         Serial.println("Failed to add peer");
         return;
     } else {
