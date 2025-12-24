@@ -251,12 +251,14 @@ void handle_received_data(payload payload) {
 // callback function that tells us when data from Master is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
+    // Debug prints
+    // Serial.println("From Mac Address: " + PriUint64(mac));
+    // Serial.println("Incoming payload size: " + String(sizeof(new_data)));
+
     messages_received_counter = messages_received_counter + 1;
 
     payload new_data;
     memcpy(&new_data, incomingData, sizeof(new_data));
-    // Serial.println("Incoming payload size: " + String(sizeof(new_data)));
-
     handle_received_data(new_data); // decode message received and update data variables
 }  
 
@@ -282,8 +284,8 @@ void setup() {
 
     // put esp32 in WIFI station mode
     WiFi.mode(WIFI_STA);
-    // Serial.print("Mac Address in Station: ");
-    // Serial.println(WiFi.macAddress());
+    Serial.print("Mac Address in Station: ");
+    Serial.println(WiFi.macAddress());
     
     // init esp now (connection to slave wia wifi)
     if (esp_now_init() != ESP_OK) {
@@ -294,7 +296,7 @@ void setup() {
     // create call back (OnDataRecv will run every time a message is received via esp now)
     esp_now_register_recv_cb(OnDataRecv);
 
-    // register peer
+    // register CAN Server as peer
     esp_now_peer_info_t peerInfo;
     peerInfo.channel = 0;  
     peerInfo.encrypt = false;
@@ -304,6 +306,22 @@ void setup() {
     if (esp_now_add_peer(&peerInfo) != ESP_OK){
         Serial.println("Failed to add peer");
         return;
+    } else {
+        Serial.println("Added master ESP32 as peer");
+    }
+
+    // register button ESP32 as peer
+    esp_now_peer_info_t peerInfo;
+    peerInfo.channel = 0;  
+    peerInfo.encrypt = false;
+
+    memcpy(peerInfo.peer_addr, buttonMacAddress, 6);
+    // add peer        
+    if (esp_now_add_peer(&peerInfo) != ESP_OK){
+        Serial.println("Failed to add peer");
+        return;
+    } else {
+        Serial.println("Added button ESP32 as peer");
     }
 
     // simulation switch
