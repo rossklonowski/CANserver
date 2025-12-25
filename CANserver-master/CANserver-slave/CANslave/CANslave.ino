@@ -48,8 +48,8 @@ static double simulation = 0.0;
 static int switchPin = 12;
 
 // page stuff
-static int start_page = 5;
-const int max_pages = 12;
+static int start_page = 1;
+const int TOTAL_PAGES = 12;
 static int page = start_page;
 
 unsigned long previouscycle = 0;
@@ -78,7 +78,7 @@ unsigned long  millisAtLastPing = 0;
 
 bool connectedToMaster = true;
 
-double data_rate = 0.0;
+double message_data_rate = 0.0;
 
 unsigned long energy_timer = 0.0;
 unsigned long energy_last_timer = 0.0;
@@ -268,21 +268,32 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
         handle_received_data(new_data); // decode message received and update data variables
     } else if (memcmp(mac, buttonMacAddress, 6) == 0) {
         // from button
-        Serial.println("Received data from button MAC address!");
         struct_message new_data;
         memcpy(&new_data, incomingData, sizeof(new_data));
         Serial.println("Button data a: " + String(new_data.a));
-        page = page + 1;
-        if (page == max_pages + 1) {
-            page = 1; // rollover
+        if (new_data.a == 1) {
+            changePage(-1);
+        } else if (new_data.a == 2) {
+            changePage(1);
+        } else if (new_data.a == 3) {
+            // reset
         }
-        Serial.println("up Switching page to:" + String(page));
     } else {
         // unknown source
         Serial.println("Received data from unknown MAC address");
         return;
     }
-}  
+}
+
+
+void changePage(int direction) {  // direction = 1 for next, -1 for previous
+  page += direction;
+
+  if ((page > TOTAL_PAGES) || (page == 0)) {
+    page = 1;
+  }
+}
+
 
 void setup() {
     Serial.begin(115200);
@@ -295,7 +306,7 @@ void setup() {
     // Wire.begin(I2C_SDA, I2C_SCL);
 
     // setupBarGraphs();
-    // displayLoadingAnimationBarGraph();    
+    // displayLoadingAnimationBarGraph();
 
     // scd40_setup();
 
@@ -349,19 +360,11 @@ void loop() {
     page_button.loop();
 
     if (was_button_pressed("pageup")) {
-        page = page + 1;
-        if (page == max_pages + 1) {
-            page = 1; // rollover
-        }
-        Serial.println("up Switching page to:" + String(page));
+        changePage(1);
     }
 
     if (was_button_pressed("pagedown")) {
-        page = page - 1;
-        if (page == 0) {
-            page = max_pages; // rollover
-        }
-        Serial.println("down Switching page to:" + String(page));
+        changePage(-1);
     }
 
     if (was_button_pressed("reset")) {
@@ -388,7 +391,7 @@ void loop() {
         int messages_received_last_interval = messages_received_counter - last_messages_received_counter;
         double messages_received_last_interval_double = (double)messages_received_last_interval;
         double interval_seconds = (double)interval/1000.00;
-        data_rate = messages_received_last_interval_double / interval_seconds;
+        message_data_rate = messages_received_last_interval_double / interval_seconds;
         last_messages_received_counter = messages_received_counter;
     }
 
@@ -502,12 +505,13 @@ void loop() {
             oled_1.oled_update();
         }
 
+        // ESP Now stats
         if (page == 5) {
             oled_1.clearDisplay();
 
             oled_1.send_to_oled_buffer(0, "ESP Now Stats");
             oled_1.send_to_oled_buffer(1, " Msg Cnt: " + String(messages_received_counter));
-            oled_1.send_to_oled_buffer(2, " Msgs/S:  TODO");
+            oled_1.send_to_oled_buffer(2, " Msgs/S:  " + String(message_data_rate, 2));
 
             oled_1.oled_update();
         }
@@ -613,6 +617,5 @@ void loop() {
         // // }
 
         // oled_1.draw_page_status(page, max_pages);
-
-    }   
+    }
 }
