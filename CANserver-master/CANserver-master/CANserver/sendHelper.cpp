@@ -18,7 +18,6 @@ int sendToDisplay(const uint8_t *receiverMacAddress, uint32_t can_id, int valueT
     esp_err_t result = 0;
     result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
 
-
     return result;
 }
 

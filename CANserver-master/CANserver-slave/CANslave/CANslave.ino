@@ -48,8 +48,8 @@ static double simulation = 0.0;
 static int switchPin = 12;
 
 // page stuff
-static int start_page = 1;
-const int max_pages = 5;
+static int start_page = 5;
+const int max_pages = 12;
 static int page = start_page;
 
 unsigned long previouscycle = 0;
@@ -87,6 +87,11 @@ unsigned long energy_last_timer = 0.0;
 float temp_f = 0.0;
 float humidity = 0.0;
 float c02 = 0.0;
+
+typedef struct struct_message {
+    int a;
+} struct_message;
+
 
 bool was_button_pressed(String button) {
     bool pressed = false;
@@ -257,9 +262,26 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
     messages_received_counter = messages_received_counter + 1;
 
-    payload new_data;
-    memcpy(&new_data, incomingData, sizeof(new_data));
-    handle_received_data(new_data); // decode message received and update data variables
+    if (memcmp(mac, masterMacAddress, 6) == 0) {
+        payload new_data;
+        memcpy(&new_data, incomingData, sizeof(new_data));
+        handle_received_data(new_data); // decode message received and update data variables
+    } else if (memcmp(mac, buttonMacAddress, 6) == 0) {
+        // from button
+        Serial.println("Received data from button MAC address!");
+        struct_message new_data;
+        memcpy(&new_data, incomingData, sizeof(new_data));
+        Serial.println("Button data a: " + String(new_data.a));
+        page = page + 1;
+        if (page == max_pages + 1) {
+            page = 1; // rollover
+        }
+        Serial.println("up Switching page to:" + String(page));
+    } else {
+        // unknown source
+        Serial.println("Received data from unknown MAC address");
+        return;
+    }
 }  
 
 void setup() {
@@ -298,33 +320,15 @@ void setup() {
 
     // register CAN Server as peer
     esp_now_peer_info_t peerInfo;
-    peerInfo.channel = 0;  
+    peerInfo.channel = 0;
     peerInfo.encrypt = false;
-
-    esp_now_peer_info_t peerInfo2;
-    peerInfo2.channel = 0;  
-    peerInfo2.encrypt = false;
-
     memcpy(peerInfo.peer_addr, masterMacAddress, 6);
     if (esp_now_add_peer(&peerInfo) != ESP_OK){
         Serial.println("Failed to add peer");
         return;
     } else {
         Serial.println("Added master ESP32 as peer");
-    }
-
-    // register button ESP32 as peer
-    esp_now_peer_info_t peerInfo;
-    peerInfo.channel = 0;  
-    peerInfo.encrypt = false;
-
-    memcpy(peerInfo2.peer_addr, buttonMacAddress, 6);
-    if (esp_now_add_peer(&peerInfo2) != ESP_OK){
-        Serial.println("Failed to add peer");
-        return;
-    } else {
-        Serial.println("Added button ESP32 as peer");
-    }
+    }       
 
     // simulation switch
     pinMode(switchPin, INPUT);  // sets the digital pin 13 as output
@@ -494,51 +498,62 @@ void loop() {
                 prog2.setPercentFill(socAVE.getValue());
                 oled_1.draw(prog2);
             }
-            
+
             oled_1.oled_update();
         }
 
         if (page == 5) {
             oled_1.clearDisplay();
+
+            oled_1.send_to_oled_buffer(0, "ESP Now Stats");
+            oled_1.send_to_oled_buffer(1, " Msg Cnt: " + String(messages_received_counter));
+            oled_1.send_to_oled_buffer(2, " Msgs/S:  TODO");
+
+            oled_1.oled_update();
+        }
+
+        // Tesla Image
+        if (page == 6) {
+            oled_1.clearDisplay();
             oled_1.oled_image(0);
             oled_1.oled_update();
         }
 
-        // if (page == 6) {
-        //     oled_1.clearDisplay();
-        //     oled_1.oled_image(1);
-        //     oled_1.oled_update();
-        // }
+        if (page == 7) {
+            oled_1.clearDisplay();
+            oled_1.oled_image(1);
+            oled_1.oled_update();
+        }
 
-        // if (page == 7) {
-        //     oled_1.clearDisplay();
-        //     oled_1.oled_image(2);
-        //     oled_1.oled_update();
-        // }
+        if (page == 8) {
+            oled_1.clearDisplay();
+            oled_1.oled_image(2);
+            oled_1.oled_update();
+        }
 
-        // if (page == 8) {
-        //     oled_1.clearDisplay();
-        //     oled_1.oled_image(3);
-        //     oled_1.oled_update();
-        // }
+        if (page == 9) {
+            oled_1.clearDisplay();
+            oled_1.oled_image(3);
+            oled_1.oled_update();
+        }
 
-        // if (page == 9) {
-        //     oled_1.clearDisplay();
-        //     oled_1.oled_image(4);
-        //     oled_1.oled_update();
-        // }
+        if (page == 10) {
+            oled_1.clearDisplay();
+            oled_1.oled_image(4);
+            oled_1.oled_update();
+        }
 
-        // if (page == 10) {
-        //     oled_1.clearDisplay();
-        //     oled_1.oled_image(5);
-        //     oled_1.oled_update();
-        // }
+        if (page == 11) {
+            oled_1.clearDisplay();
+            oled_1.oled_image(5);
+            oled_1.oled_update();
+        }
 
-        // if (page == 11) {
-        //     oled_1.clearDisplay();
-        //     oled_1.oled_image(6);
-        //     oled_1.oled_update();
-        // }
+        if (page == 12) {
+            oled_1.clearDisplay();
+            oled_1.oled_image(6);
+            oled_1.oled_update();
+        }
 
         // // if (page == 6) { // accelerometer stuff
         // //     oled_1.clearDisplay();
@@ -596,6 +611,8 @@ void loop() {
         // //         }
         // //     }
         // // }
-        oled_1.draw_page_status(page, max_pages);
+
+        // oled_1.draw_page_status(page, max_pages);
+
     }   
 }
