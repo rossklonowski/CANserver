@@ -46,7 +46,7 @@ static double simulation = 0.0;
 static int switchPin = 12;
 
 // page stuff
-static int start_page = 1;
+static int start_page = 6;
 const int TOTAL_PAGES = 15;
 static int page = start_page;
 
@@ -301,8 +301,10 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
             changePage(1);
         } else if (new_data.int_value_1 == 3) {
             // reset
+            magnitude = 0.0;
             magnitude_max = 0.0;
             gGraph.clear();
+            tempGraph.clear();
         }
     } else if (new_data.msgCode == "SCD40") {
         temp_f = new_data.double_value_1;
@@ -403,10 +405,10 @@ void setup() {
     // simulation switch
     pinMode(switchPin, INPUT);  // sets the digital pin 13 as output
 
-    tempGraph.set_time_window(10000);
-    tempGraph.enable_auto_scale(true);
+    tempGraph.set_time_window(1000 * 60 * 60);
+    // tempGraph.enable_auto_scale(true);
 
-    gGraph.set_time_window(10000);
+    gGraph.set_time_window(5000);
     gGraph.enable_auto_scale(true);
 
     Serial.println("Finished with setup!");
@@ -489,6 +491,9 @@ void loop() {
         }
         
         tripDistance.setValue(odometer.getValue() - startOfTripOdometer.getValue());
+
+        oled_1.clearDisplay();
+
 
         if (page == 1) {
             oled_1.clearDisplay();
@@ -586,17 +591,13 @@ void loop() {
         }
 
         if (page == 6) { // Gs Graph Page
-            oled_1.clearDisplay();
             oled_1.send_to_oled_buffer(0, "Gs Graph");
             oled_1.draw_graph(gGraph);
-            oled_1.oled_update();
         }
 
         if (page == 7) { // Temperature Graph Page
-            oled_1.clearDisplay();
             oled_1.send_to_oled_buffer(0, "Temperature Graph");
             oled_1.draw_graph(tempGraph);
-            oled_1.oled_update();
         }
 
         // ESP Now stats
@@ -653,6 +654,9 @@ void loop() {
             oled_1.oled_update();
         }
 
+
         // oled_1.draw_page_status(page, max_pages);
+
+        oled_1.oled_update();
     }
 }

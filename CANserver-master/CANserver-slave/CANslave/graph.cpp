@@ -145,14 +145,13 @@ void Graph::draw(Custom_Adafruit_SSD1325& display) {
         
         // Draw lines between consecutive points based on timestamps
         for (int i = 0; i < data_count - 1; i++) {
-            // Skip if points are outside time window
-            if (timestamps[i] < oldest_time) break;
-            if (timestamps[i + 1] < oldest_time) continue;
+            // Skip if the second point is outside time window
+            if (timestamps[i + 1] < oldest_time) break;
             
-            // Calculate X positions based on timestamps
-            // Right side = current_time, left side = oldest_time
-            int x1 = x_position + width - 1 - (int)((current_time - timestamps[i]) * graph_width / time_window_ms);
-            int x2 = x_position + width - 1 - (int)((current_time - timestamps[i + 1]) * graph_width / time_window_ms);
+            // Calculate X positions based on time window
+            // Right side = current_time (0ms ago), left side = oldest_time (time_window_ms ago)
+            int x1 = x_position + width - 1 - (int)((float)(current_time - timestamps[i]) * graph_width / time_window_ms);
+            int x2 = x_position + width - 1 - (int)((float)(current_time - timestamps[i + 1]) * graph_width / time_window_ms);
             
             // Clamp X to graph bounds
             if (x1 < x_position + 1) x1 = x_position + 1;

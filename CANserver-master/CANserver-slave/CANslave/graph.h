@@ -14,7 +14,7 @@ class Custom_Adafruit_SSD1325;
 class Graph {
     
     private:
-        static const int MAX_DATA_POINTS = 108; // 128 - 20 pixels for margins
+        static const int MAX_DATA_POINTS = 1000; // Increased to store more historical data
         float data[MAX_DATA_POINTS];
         unsigned long timestamps[MAX_DATA_POINTS]; // Timestamp in milliseconds
         int data_count;
