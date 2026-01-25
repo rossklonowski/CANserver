@@ -4,7 +4,7 @@
 
 #include "Custom_Adafruit_SSD1325.h"
 #include "queue.h"
-
+#include "graph.h"
 #include "ProgressBar.h"
 
 #ifndef oled_h
@@ -64,6 +64,8 @@ class OLED {
         void update_graph(my_queue&);
 
         void simulate_graph();
+        
+        void draw_graph(Graph&);
 
         int get_orientation();
 

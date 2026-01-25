@@ -1,6 +1,7 @@
 #include <esp_now.h>
 
 typedef struct payload {
+    String msgCode; // 16 bytes
     uint32_t can_id; // 4 bytes
     int int_value_1; // 4 bytes
     int int_value_2; // 4 bytes

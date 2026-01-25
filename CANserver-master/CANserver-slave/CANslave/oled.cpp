@@ -255,3 +255,7 @@ void OLED::draw(ProgressBar &ProgressBar) {
     private_display.fillRect(ProgressBar.getxPos(), ProgressBar.getyPos(), lengthValue, ProgressBar.getBarHeight(), WHITE); // pixels from left, pixels from top, rectangle length, rectangle height
 }
 
+void OLED::draw_graph(Graph& graph) {
+    graph.draw(private_display);
+}
+
