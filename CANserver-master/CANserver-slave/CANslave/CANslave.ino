@@ -48,8 +48,8 @@ static double simulation = 0.0;
 static int switchPin = 12;
 
 // page stuff
-static int start_page = 1;
-const int TOTAL_PAGES = 12;
+static int start_page = 14;
+const int TOTAL_PAGES = 14;
 static int page = start_page;
 
 unsigned long previouscycle = 0;
@@ -88,9 +88,23 @@ float temp_f = 0.0;
 float humidity = 0.0;
 float c02 = 0.0;
 
-typedef struct struct_message {
-    int a;
-} struct_message;
+int sendToBarGraphPowerEspNow(const uint8_t *receiverMacAddress, String motor, double valueToSend1, double valueToSend2) {
+
+    Serial.println(" Front Motor Power: " + String(valueToSend1) + " Rear Motor Power: " + String(valueToSend2));
+
+    payload payload;
+
+    payload.can_id = 0x000;
+    payload.double_value_1 = valueToSend1;
+    payload.double_value_2 = valueToSend2;
+    payload.double_value_3 = -1;
+    
+    esp_err_t result = 0;
+    result = esp_now_send(receiverMacAddress, (uint8_t *) &payload, sizeof(payload));
+    Serial.println("Send Status: " + String(result));
+
+    return result;
+}
 
 
 bool was_button_pressed(String button) {
@@ -105,9 +119,11 @@ bool was_button_pressed(String button) {
     return pressed;
 }
 
+
 void handle_received_data(payload payload) {
 
     switch (payload.can_id) {
+
         case 0x312 : // batt temp
             minBattTemp.setValue(payload.double_value_1 * (9/5) + 32.0);
             maxBattTemp.setValue(payload.double_value_2 * (9/5) + 32.0);
@@ -157,6 +173,8 @@ void handle_received_data(payload payload) {
         case 0x2E5 : // frontPower
             frontPowerClass.setValue(payload.double_value_1 * 1000.00);
             frontPowerLimitClass.setValue(payload.double_value_2 * 1000.00);
+
+            sendToBarGraphPowerEspNow(buttonMacAddress, "front", frontPowerClass.getValue(), rearPowerClass.getValue());
             
             break;
 
@@ -262,27 +280,53 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
     messages_received_counter = messages_received_counter + 1;
 
-    if (memcmp(mac, masterMacAddress, 6) == 0) {
-        payload new_data;
-        memcpy(&new_data, incomingData, sizeof(new_data));
+    payload new_data;
+    memcpy(&new_data, incomingData, sizeof(new_data));
+    if (new_data.msgCode == "CAN") {
         handle_received_data(new_data); // decode message received and update data variables
-    } else if (memcmp(mac, buttonMacAddress, 6) == 0) {
-        // from button
-        struct_message new_data;
-        memcpy(&new_data, incomingData, sizeof(new_data));
-        Serial.println("Button data a: " + String(new_data.a));
-        if (new_data.a == 1) {
+    } else if (new_data.msgCode == "BUTTON") {
+        if (new_data.int_value_1== 1) {
             changePage(-1);
-        } else if (new_data.a == 2) {
+        } else if (new_data.int_value_1 == 2) {
             changePage(1);
-        } else if (new_data.a == 3) {
+        } else if (new_data.int_value_1 == 3) {
             // reset
         }
-    } else {
-        // unknown source
-        Serial.println("Received data from unknown MAC address");
-        return;
+    } else if (new_data.msgCode == "SCD40") {
+        temp_f = new_data.double_value_1;
+        humidity = new_data.double_value_2;
+        c02 = new_data.double_value_3;
+
     }
+
+    // if (memcmp(mac, masterMacAddress, 6) == 0) {
+    //     payload new_data;
+    //     memcpy(&new_data, incomingData, sizeof(new_data));
+    //     handle_received_data(new_data); // decode message received and update data variables
+    // } else if (memcmp(mac, buttonMacAddress, 6) == 0) {
+    //     // from button
+    //     struct_message new_data;
+    //     memcpy(&new_data, incomingData, sizeof(new_data));
+    //     Serial.println("Button data a: " + String(new_data.a));
+    //     if (new_data.a == 1) {
+    //         changePage(-1);
+    //     } else if (new_data.a == 2) {
+    //         changePage(1);
+    //     } else if (new_data.a == 3) {
+    //         // reset
+    //     }
+    // } else {
+    //     // unknown source
+    //     Serial.println("Received data from unknown MAC address");
+    //     return;
+    // }
+}
+
+
+// callback when data is sent
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
 
@@ -326,20 +370,38 @@ void setup() {
         return;
     }
 
+    // Once ESPNow is successfully Init, we will register for Send CB to
+    // get the status of Trasnmitted packet
+    esp_now_register_send_cb(esp_now_send_cb_t(OnDataSent));
+
     // create call back (OnDataRecv will run every time a message is received via esp now)
     esp_now_register_recv_cb(OnDataRecv);
 
     // register CAN Server as peer
     esp_now_peer_info_t peerInfo;
+    memset(&peerInfo, 0, sizeof(peerInfo));  // ← This line is critical!
     peerInfo.channel = 0;
     peerInfo.encrypt = false;
     memcpy(peerInfo.peer_addr, masterMacAddress, 6);
     if (esp_now_add_peer(&peerInfo) != ESP_OK){
-        Serial.println("Failed to add peer");
+        Serial.println("Failed to add Car ESP32 as peer");
         return;
     } else {
-        Serial.println("Added master ESP32 as peer");
-    }       
+        Serial.println("Added Car ESP32 as peer");
+    }
+
+    // register barGraphReceiver as peer
+    esp_now_peer_info_t peerInfo2;
+    memset(&peerInfo2, 0, sizeof(peerInfo2));  // ← This line is critical!
+    peerInfo2.channel = 0;
+    peerInfo2.encrypt = false;
+    memcpy(peerInfo2.peer_addr, buttonMacAddress, 6);
+    if (esp_now_add_peer(&peerInfo2) != ESP_OK){
+        Serial.println("Failed to add barGraphReceiver ESP32 as peer");
+        return;
+    } else {
+        Serial.println("Added barGraphReceiver ESP32 as peer");
+    }
 
     // simulation switch
     pinMode(switchPin, INPUT);  // sets the digital pin 13 as output
@@ -348,6 +410,7 @@ void setup() {
 }
 
 void loop() {
+
     loop_counter++;
     long iter_loop_current = millis();
     if (iter_loop_current - previous_loop_iter_check >= loop_iter_check_interval) {
@@ -559,62 +622,88 @@ void loop() {
             oled_1.oled_update();
         }
 
-        // // if (page == 6) { // accelerometer stuff
-        // //     oled_1.clearDisplay();
+
+        if (page == 13) { // SCD40 Page
+            oled_1.clearDisplay();
+
+            oled_1.send_to_oled_buffer(0, "SCD40 Data");
+            oled_1.send_to_oled_buffer(1, "  C02  " + String(c02, 0) + "ppm");
+            oled_1.send_to_oled_buffer(2, "  Temp " + String(temp_f) + "F");
+            oled_1.send_to_oled_buffer(3, "  RH   " + String(humidity) + "%");
+
+            oled_1.oled_update();
+        }
+
+        if (page == 14) { // Graph Page
+            oled_1.clearDisplay();
+
+            oled_1.send_to_oled_buffer(0, "Graph Page");
+
+
+            oled_1.oled_update();
+        }
+
+
+        // if (page == 6) { // accelerometer stuff
+        //     oled_1.clearDisplay();
             
-        // //     float accel_x = 0.0;
-        // //     float accel_y = 0.0;
-        // //     float accel_z = 0.0;
-        // //     accel_get_g_force(accel_x, accel_y, accel_z);
-        // //     accel_vector = sqrt( (accel_x*accel_x) + (accel_y*accel_y) + (accel_z*accel_z) );
-        // //     accel_vector = accel_vector - accel_offset;
-        // //     if (accel_vector > max_accel_vector) {
-        // //         max_accel_vector = accel_vector;
-        // //     }
+        //     float accel_x = 0.0;
+        //     float accel_y = 0.0;
+        //     float accel_z = 0.0;
+        //     accel_get_g_force(accel_x, accel_y, accel_z);
+        //     accel_vector = sqrt( (accel_x*accel_x) + (accel_y*accel_y) + (accel_z*accel_z) );
+        //     accel_vector = accel_vector - accel_offset;
+        //     if (accel_vector > max_accel_vector) {
+        //         max_accel_vector = accel_vector;
+        //     }
             
-        // //     float g_x = accel_x / 9.81;
-        // //     float g_y = accel_x / 9.81;
-        // //     float g_z = accel_x / 9.81;
-        // //     float g_vector = accel_vector / 9.81;
+        //     float g_x = accel_x / 9.81;
+        //     float g_y = accel_x / 9.81;
+        //     float g_z = accel_x / 9.81;
+        //     float g_vector = accel_vector / 9.81;
 
-        // //     if (g_vector > max_g_vector) {
-        // //         max_g_vector = g_vector;
-        // //     }
+        //     if (g_vector > max_g_vector) {
+        //         max_g_vector = g_vector;
+        //     }
             
-        // //     String sign1 = (accel_x >= 0) ? "+" : "";
-        // //     String sign2 = (g_x >= 0) ? "+" : "";
-        // //     String sign3 = (accel_y >= 0) ? "+" : "";
-        // //     String sign4 = (g_y >= 0) ? "+" : "";
-        // //     String sign5 = (accel_z >= 0) ? "+" : "";
-        // //     String sign6 = (g_z >= 0) ? "+" : "";
-        // //     String sign7 = (accel_vector >= 0) ? "+" : "";
-        // //     String sign8 = (max_accel_vector >= 0) ? "+" : "";
-        // //     String sign9 = (g_vector >= 0) ? "+" : "";
-        // //     String sign10 = (max_g_vector >= 0) ? "+" : "";
+        //     String sign1 = (accel_x >= 0) ? "+" : "";
+        //     String sign2 = (g_x >= 0) ? "+" : "";
+        //     String sign3 = (accel_y >= 0) ? "+" : "";
+        //     String sign4 = (g_y >= 0) ? "+" : "";
+        //     String sign5 = (accel_z >= 0) ? "+" : "";
+        //     String sign6 = (g_z >= 0) ? "+" : "";
+        //     String sign7 = (accel_vector >= 0) ? "+" : "";
+        //     String sign8 = (max_accel_vector >= 0) ? "+" : "";
+        //     String sign9 = (g_vector >= 0) ? "+" : "";
+        //     String sign10 = (max_g_vector >= 0) ? "+" : "";
 
-        // //     oled_1.send_to_oled_buffer(0, 1, 1, "" + String(accel_vector, 1) + "m/s^2");
-        // //     oled_1.send_to_oled_buffer(1, 2, 9, "" + String(max_accel_vector, 1) + "m/s^2");
-        // //     oled_1.send_to_oled_buffer(2, 1, 24, "" + String(g_vector, 1) + "g");
-        // //     oled_1.send_to_oled_buffer(3, 2, 32, "" + String(max_g_vector, 1) + "g");
+        //     oled_1.send_to_oled_buffer(0, 1, 1, "" + String(accel_vector, 1) + "m/s^2");
+        //     oled_1.send_to_oled_buffer(1, 2, 9, "" + String(max_accel_vector, 1) + "m/s^2");
+        //     oled_1.send_to_oled_buffer(2, 1, 24, "" + String(g_vector, 1) + "g");
+        //     oled_1.send_to_oled_buffer(3, 2, 32, "" + String(max_g_vector, 1) + "g");
 
-        // //     oled_1.oled_update();
-        // // }
+        //     oled_1.oled_update();
+        // }
 
-        // // if (page == 7) {
-        // //     if (scd40IsSetup()) {
-        // //         if (scd40_data_ready()) {
-        // //             oled_1.clearDisplay();
+        // if (page == 7) {
+        //     if (scd40IsSetup()) {
+        //         if (scd40_data_ready()) {
+        //             oled_1.clearDisplay();
                     
-        // //             scd40_get_data(c02, temp_f, humidity);
-        // //             oled_1.send_to_oled_buffer(0, "SCD40");
-        // //             oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + "F");
-        // //             oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + "%");
-        // //             oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + "ppm");
+        //             scd40_get_data(c02, temp_f, humidity);
+        //             oled_1.send_to_oled_buffer(0, "SCD40");
+        //             oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + "F");
+        //             oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + "%");
+        //             oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + "ppm");
                     
-        // //             oled_1.oled_update();
-        // //         }
-        // //     }
-        // // }
+        //             oled_1.oled_update();
+        //         }
+        //     }
+        // }
+
+
+
+        oled_1.oled_update();
 
         // oled_1.draw_page_status(page, max_pages);
     }

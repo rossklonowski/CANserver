@@ -95,13 +95,10 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 }
 
 
-// callback function - gives us feedback about the sent data
+// callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-    if (status == ESP_NOW_SEND_SUCCESS) {
-        // TODO track successes per second
-    } else {
-        // TODO track failures per second
-    }
+  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
 
@@ -131,11 +128,11 @@ void setup(){
         return;
     }
 
-    // create call back (OnDataRecv will run every time a message is received via esp now)
-    esp_now_register_recv_cb(OnDataRecv);
-
     // connect function that runs when data is sent
     esp_now_register_send_cb(OnDataSent);
+
+    // create call back (OnDataRecv will run every time a message is received via esp now)
+    esp_now_register_recv_cb(OnDataRecv);
 
     // register peer
     esp_now_peer_info_t peerInfo;
@@ -143,7 +140,7 @@ void setup(){
     peerInfo.encrypt = false;
 
     memcpy(peerInfo.peer_addr, receiverMacAddress, 6);
-    // add peer        
+    // add peer
     if (esp_now_add_peer(&peerInfo) != ESP_OK){
         Serial.println("Failed to add peer");
         return;
@@ -473,7 +470,7 @@ void loop() {
         
                     break; 
 
-                case 0x241: // cooland
+                case 0x241: // coolant
                     sendToDisplay(receiverMacAddress, 0x241, coolantFlowBatActual, coolantFlowPTActual);
         
                     break; 
