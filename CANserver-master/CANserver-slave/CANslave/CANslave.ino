@@ -32,9 +32,17 @@
 
 OLED oled_1;
 
-ezButton page_button(page_button_pin);
-ezButton pageBackButton(page_back_button_pin);
-ezButton reset_button(reset_data_button_pin);
+// ezButton page_button(4, INPUT_PULLUP);
+// ezButton pageBackButton(page_back_button_pin, INPUT_PULLUP);
+// ezButton reset_button(4, INPUT_PULLUP);
+
+
+unsigned long startTime;  // Variable to store the start time
+unsigned long elapsedTime;  // Variable to store the elapsed time
+int hours, minutes, seconds;  // Variables to store hours, minutes, and seconds
+
+
+
 
 static bool isIdle = true;
 static bool isFirstRecv = true;
@@ -120,11 +128,11 @@ int sendToBarGraphPowerEspNow(const uint8_t *receiverMacAddress, String motor, d
 bool was_button_pressed(String button) {
     bool pressed = false;
     if (button == "reset") {
-        pressed = reset_button.isPressed();
+        // pressed = reset_button.isPressed();
     } else if (button == "pagedown") {
-        pressed = pageBackButton.isPressed();
+        // pressed = pageBackButton.isPressed();
     } else if (button == "pageup") {
-        pressed = page_button.isPressed();
+        // pressed = page_button.isPressed();
     }
     return pressed;
 }
@@ -345,6 +353,9 @@ void setup() {
     pinMode(LED2, OUTPUT); // configure blue LED
     digitalWrite(LED2, HIGH);
 
+    // timer
+    startTime = millis();  // Record the start time
+
     // I2C needed for C02 and Accelerometer
     // Wire.begin(I2C_SDA, I2C_SCL);
 
@@ -402,6 +413,8 @@ void setup() {
         Serial.println("Added barGraphReceiver ESP32 as peer");
     }
 
+    // pinMode(4, INPUT_PULLUP);
+
     // simulation switch
     pinMode(switchPin, INPUT);  // sets the digital pin 13 as output
 
@@ -424,9 +437,9 @@ void loop() {
         last_loop_iters = loop_counter;
     }
 
-    pageBackButton.loop();
-    reset_button.loop();
-    page_button.loop();
+    // pageBackButton.loop();
+    // reset_button.loop();
+    // page_button.loop();
 
     if (was_button_pressed("pageup")) {
         changePage(1);
@@ -480,6 +493,31 @@ void loop() {
     if (update_currentMillis - update_previouscycle >= update_interval) {
         update_previouscycle = update_currentMillis;
 
+        // Serial.println(digitalRead(4));
+
+        elapsedTime = millis() - startTime;
+        // Convert milliseconds to hours, minutes, and seconds
+        hours = elapsedTime / 3600000;
+        minutes = (elapsedTime % 3600000) / 60000;
+        seconds = (elapsedTime % 60000) / 1000;
+        String hoursString = String(hours);
+        String minutesString = String(minutes);
+        String secondsString = String(seconds);
+
+        if (hoursString.length() < 2) {
+            hoursString = "0" + hoursString;
+        }
+
+        if (minutesString.length() < 2) {
+            minutesString = "0" + minutesString;
+        }
+
+        if (secondsString.length() < 2) {
+            secondsString = "0" + secondsString;
+        }
+
+        String timeString = String(hoursString) + ":" + String(minutesString) + ":" + String(secondsString);
+
         if (tripDistance.getValue() != 0.0) {
             efficiency.setValue((sampledEnergyCounter.getValue() / tripDistance.getValue()) * 1000.00);
         }
@@ -498,22 +536,26 @@ void loop() {
         if (page == 1) {
             oled_1.clearDisplay();
 
-            oled_1.send_to_oled_buffer(0, minBattTemp.getString(0) + " " + maxBattTemp.getString(0));
+            oled_1.send_to_oled_buffer(0, minBattTemp.getString(0) + " " + maxBattTemp.getString(0) + " " + maxRegenClass.getString());
             oled_1.send_to_oled_buffer(0, socAVE.getString(1), "right");
+
             oled_1.send_to_oled_buffer(1, battPowerClass.getString());
             oled_1.send_to_oled_buffer(1, powerNotFromMotors.getString(), "right");
 
-            oled_1.send_to_oled_buffer(3, "  " + tripDistance.getString(2));
-            oled_1.send_to_oled_buffer(4, "  " + efficiency.getString(0));
+            oled_1.send_to_oled_buffer(2, "      " + timeString);
 
+            oled_1.send_to_oled_buffer(3, "  " + tripDistance.getString(2));
             oled_1.send_to_oled_buffer(3, "            " + sampledEnergyCounter.getString(2));
+
+            oled_1.send_to_oled_buffer(4, "  " + efficiency.getString(0));
             oled_1.send_to_oled_buffer(4, "            " + rangeBasedOnEfficiency.getString(0));
 
-            oled_1.send_to_oled_buffer(6, coolantFlowBatActualClass.getString(0) + " " + tempCoolantBatInletClass.getString(0));
-            oled_1.send_to_oled_buffer(6, coolantFlowPTActualClass.getString(0) + " " + tempCoolantPTInletClass.getString(0), "right");
-            oled_1.send_to_oled_buffer(7, maxRegenClass.getString());
-            oled_1.send_to_oled_buffer(7, maxDischargeClass.getString(), "right");
-            
+            oled_1.send_to_oled_buffer(6, frontPowerClass.getString() + " " + frontInverterTempClass.getString());
+            oled_1.send_to_oled_buffer(6, rearPowerClass.getString() + " " + rearInverterTempClass.getString(), "right");
+
+            oled_1.send_to_oled_buffer(7, coolantFlowBatActualClass.getString(0) + " " + tempCoolantBatInletClass.getString(0));
+            oled_1.send_to_oled_buffer(7, coolantFlowPTActualClass.getString(0) + " " + tempCoolantPTInletClass.getString(0), "right");
+
             oled_1.oled_update();
         }
 

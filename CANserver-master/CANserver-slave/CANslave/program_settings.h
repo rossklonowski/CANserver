@@ -12,8 +12,8 @@
 const uint8_t masterMacAddress[] = { 0x24, 0x62, 0xAB, 0xFB, 0x01, 0x7C };
 const uint8_t buttonMacAddress[] = { 0xAC, 0x67, 0xB2, 0x2C, 0x3C, 0xD0 };
 
-const static int page_button_pin = 36;
-const static int reset_data_button_pin = 39;
-const static int page_back_button_pin = 34;
+const static int page_button_pin = 4;
+const static int reset_data_button_pin = 0;
+// const static int page_back_button_pin = 34;
 
 static int loop_counter = 0;
