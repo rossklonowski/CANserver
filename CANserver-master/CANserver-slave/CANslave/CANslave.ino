@@ -16,8 +16,6 @@
 #include "lcd.h"
 #include "sendHelper.h"
 #include "oled.h"
-#include "accelerometer.h"
-#include "SCD40.h"
 // OLED
 #include <SPI.h>
 #include "payload.h"
@@ -48,8 +46,8 @@ static double simulation = 0.0;
 static int switchPin = 12;
 
 // page stuff
-static int start_page = 14;
-const int TOTAL_PAGES = 14;
+static int start_page = 1;
+const int TOTAL_PAGES = 15;
 static int page = start_page;
 
 unsigned long previouscycle = 0;
@@ -87,6 +85,18 @@ unsigned long energy_last_timer = 0.0;
 float temp_f = 0.0;
 float humidity = 0.0;
 float c02 = 0.0;
+
+//LIS3DH Accel Vars
+float magnitude = 0.0;
+float magnitude_max = 0.0;
+
+
+// Create a graph at position (x=10, y=5) with size (width=108, height=50)
+Graph tempGraph(0, 9, 127, 54);
+Graph gGraph(0, 9, 127, 54);
+// Graph gGraph(10, 5, 108, 50);
+
+
 
 int sendToBarGraphPowerEspNow(const uint8_t *receiverMacAddress, String motor, double valueToSend1, double valueToSend2) {
 
@@ -291,35 +301,22 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
             changePage(1);
         } else if (new_data.int_value_1 == 3) {
             // reset
+            magnitude_max = 0.0;
+            gGraph.clear();
         }
     } else if (new_data.msgCode == "SCD40") {
         temp_f = new_data.double_value_1;
         humidity = new_data.double_value_2;
         c02 = new_data.double_value_3;
 
+        tempGraph.push_value(temp_f);
+    } else if (new_data.msgCode == "ACCEL") {
+        magnitude = new_data.double_value_1;
+        if (magnitude > magnitude_max) {
+            magnitude_max = magnitude;
+        }
+        gGraph.push_value(magnitude);
     }
-
-    // if (memcmp(mac, masterMacAddress, 6) == 0) {
-    //     payload new_data;
-    //     memcpy(&new_data, incomingData, sizeof(new_data));
-    //     handle_received_data(new_data); // decode message received and update data variables
-    // } else if (memcmp(mac, buttonMacAddress, 6) == 0) {
-    //     // from button
-    //     struct_message new_data;
-    //     memcpy(&new_data, incomingData, sizeof(new_data));
-    //     Serial.println("Button data a: " + String(new_data.a));
-    //     if (new_data.a == 1) {
-    //         changePage(-1);
-    //     } else if (new_data.a == 2) {
-    //         changePage(1);
-    //     } else if (new_data.a == 3) {
-    //         // reset
-    //     }
-    // } else {
-    //     // unknown source
-    //     Serial.println("Received data from unknown MAC address");
-    //     return;
-    // }
 }
 
 
@@ -406,8 +403,15 @@ void setup() {
     // simulation switch
     pinMode(switchPin, INPUT);  // sets the digital pin 13 as output
 
+    tempGraph.set_time_window(10000);
+    tempGraph.enable_auto_scale(true);
+
+    gGraph.set_time_window(10000);
+    gGraph.enable_auto_scale(true);
+
     Serial.println("Finished with setup!");
 }
+
 
 void loop() {
 
@@ -568,8 +572,35 @@ void loop() {
             oled_1.oled_update();
         }
 
+        if (page == 5) { // SCD40 Page
+            oled_1.clearDisplay();
+
+            oled_1.send_to_oled_buffer(0, "SCD40 & LIS3DH");
+            oled_1.send_to_oled_buffer(1, "  C02  " + String(c02, 0) + "ppm");
+            oled_1.send_to_oled_buffer(2, "  Temp " + String(temp_f) + "F");
+            oled_1.send_to_oled_buffer(3, "  RH   " + String(humidity) + "%");
+
+            oled_1.send_to_oled_buffer(5, "  Gs       " + String(magnitude, 2) + "g");
+            oled_1.send_to_oled_buffer(6, "  Gs(Pk) " + String(magnitude_max, 2) + "g");
+            oled_1.oled_update();
+        }
+
+        if (page == 6) { // Gs Graph Page
+            oled_1.clearDisplay();
+            oled_1.send_to_oled_buffer(0, "Gs Graph");
+            oled_1.draw_graph(gGraph);
+            oled_1.oled_update();
+        }
+
+        if (page == 7) { // Temperature Graph Page
+            oled_1.clearDisplay();
+            oled_1.send_to_oled_buffer(0, "Temperature Graph");
+            oled_1.draw_graph(tempGraph);
+            oled_1.oled_update();
+        }
+
         // ESP Now stats
-        if (page == 5) {
+        if (page == 8) {
             oled_1.clearDisplay();
 
             oled_1.send_to_oled_buffer(0, "ESP Now Stats");
@@ -580,130 +611,47 @@ void loop() {
         }
 
         // Tesla Image
-        if (page == 6) {
+        if (page == 9) {
             oled_1.clearDisplay();
             oled_1.oled_image(0);
             oled_1.oled_update();
         }
 
-        if (page == 7) {
+        if (page == 10) {
             oled_1.clearDisplay();
             oled_1.oled_image(1);
             oled_1.oled_update();
         }
 
-        if (page == 8) {
+        if (page == 11) {
             oled_1.clearDisplay();
             oled_1.oled_image(2);
             oled_1.oled_update();
         }
 
-        if (page == 9) {
+        if (page == 12) {
             oled_1.clearDisplay();
             oled_1.oled_image(3);
             oled_1.oled_update();
         }
 
-        if (page == 10) {
+        if (page == 13) {
             oled_1.clearDisplay();
             oled_1.oled_image(4);
             oled_1.oled_update();
         }
 
-        if (page == 11) {
+        if (page == 14) {
             oled_1.clearDisplay();
             oled_1.oled_image(5);
             oled_1.oled_update();
         }
 
-        if (page == 12) {
+        if (page == 15) {
             oled_1.clearDisplay();
             oled_1.oled_image(6);
             oled_1.oled_update();
         }
-
-
-        if (page == 13) { // SCD40 Page
-            oled_1.clearDisplay();
-
-            oled_1.send_to_oled_buffer(0, "SCD40 Data");
-            oled_1.send_to_oled_buffer(1, "  C02  " + String(c02, 0) + "ppm");
-            oled_1.send_to_oled_buffer(2, "  Temp " + String(temp_f) + "F");
-            oled_1.send_to_oled_buffer(3, "  RH   " + String(humidity) + "%");
-
-            oled_1.oled_update();
-        }
-
-        if (page == 14) { // Graph Page
-            oled_1.clearDisplay();
-
-            oled_1.send_to_oled_buffer(0, "Graph Page");
-
-
-            oled_1.oled_update();
-        }
-
-
-        // if (page == 6) { // accelerometer stuff
-        //     oled_1.clearDisplay();
-            
-        //     float accel_x = 0.0;
-        //     float accel_y = 0.0;
-        //     float accel_z = 0.0;
-        //     accel_get_g_force(accel_x, accel_y, accel_z);
-        //     accel_vector = sqrt( (accel_x*accel_x) + (accel_y*accel_y) + (accel_z*accel_z) );
-        //     accel_vector = accel_vector - accel_offset;
-        //     if (accel_vector > max_accel_vector) {
-        //         max_accel_vector = accel_vector;
-        //     }
-            
-        //     float g_x = accel_x / 9.81;
-        //     float g_y = accel_x / 9.81;
-        //     float g_z = accel_x / 9.81;
-        //     float g_vector = accel_vector / 9.81;
-
-        //     if (g_vector > max_g_vector) {
-        //         max_g_vector = g_vector;
-        //     }
-            
-        //     String sign1 = (accel_x >= 0) ? "+" : "";
-        //     String sign2 = (g_x >= 0) ? "+" : "";
-        //     String sign3 = (accel_y >= 0) ? "+" : "";
-        //     String sign4 = (g_y >= 0) ? "+" : "";
-        //     String sign5 = (accel_z >= 0) ? "+" : "";
-        //     String sign6 = (g_z >= 0) ? "+" : "";
-        //     String sign7 = (accel_vector >= 0) ? "+" : "";
-        //     String sign8 = (max_accel_vector >= 0) ? "+" : "";
-        //     String sign9 = (g_vector >= 0) ? "+" : "";
-        //     String sign10 = (max_g_vector >= 0) ? "+" : "";
-
-        //     oled_1.send_to_oled_buffer(0, 1, 1, "" + String(accel_vector, 1) + "m/s^2");
-        //     oled_1.send_to_oled_buffer(1, 2, 9, "" + String(max_accel_vector, 1) + "m/s^2");
-        //     oled_1.send_to_oled_buffer(2, 1, 24, "" + String(g_vector, 1) + "g");
-        //     oled_1.send_to_oled_buffer(3, 2, 32, "" + String(max_g_vector, 1) + "g");
-
-        //     oled_1.oled_update();
-        // }
-
-        // if (page == 7) {
-        //     if (scd40IsSetup()) {
-        //         if (scd40_data_ready()) {
-        //             oled_1.clearDisplay();
-                    
-        //             scd40_get_data(c02, temp_f, humidity);
-        //             oled_1.send_to_oled_buffer(0, "SCD40");
-        //             oled_1.send_to_oled_buffer(1, " Temp     " + String(temp_f) + "F");
-        //             oled_1.send_to_oled_buffer(2, " Humidity " + String(humidity) + "%");
-        //             oled_1.send_to_oled_buffer(3, " C02      " + String(c02) + "ppm");
-                    
-        //             oled_1.oled_update();
-        //         }
-        //     }
-        // }
-
-
-
-        oled_1.oled_update();
 
         // oled_1.draw_page_status(page, max_pages);
     }

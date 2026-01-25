@@ -1,0 +1,222 @@
+================================================================================
+                    GRAPH FUNCTIONALITY - QUICK START
+================================================================================
+
+                         Created by Ross Klonowski
+                         For CANserver SSD1325 Display
+
+================================================================================
+                              WHAT YOU GOT
+================================================================================
+
+A complete graphing system that displays real-time, scrolling graphs with
+trailing data on your SSD1325 OLED display.
+
+Features:
+  ✓ Shows up to 108 historical data points
+  ✓ Auto-scaling Y-axis
+  ✓ Real-time updates
+  ✓ Simple 3-line usage
+  ✓ Multiple graphs supported
+  ✓ Only ~432 bytes per graph
+
+================================================================================
+                            QUICK START (60 SECONDS)
+================================================================================
+
+1. TEST IT FIRST
+   - Open: graph_test.ino
+   - Upload to your Arduino
+   - You should see a sine wave scrolling on the display
+   
+2. ADD TO YOUR PROJECT
+   Add these lines to your CANslave.ino:
+   
+   // At the top with includes:
+   #include "graph.h"
+   
+   // In global variables:
+   Graph myGraph(10, 5, 108, 50);
+   
+   // In setup():
+   myGraph.enable_auto_scale(true);
+   
+   // When you get new data:
+   myGraph.push_value(yourValue);
+   
+   // In display function:
+   oled.clearDisplay();
+   oled.draw_graph(myGraph);
+   oled.oled_update();
+
+3. DONE!
+   Upload and watch your data scroll in real-time!
+
+================================================================================
+                              BASIC USAGE
+================================================================================
+
+Three-Step Pattern:
+
+    1. CREATE: Graph myGraph(x, y, width, height);
+    
+    2. PUSH:   myGraph.push_value(value);
+    
+    3. DRAW:   oled.clearDisplay();
+               oled.draw_graph(myGraph);
+               oled.oled_update();
+
+That's it!
+
+================================================================================
+                            CUSTOMIZATION
+================================================================================
+
+Auto-Scale (adjusts to your data):
+    myGraph.enable_auto_scale(true);
+
+Fixed Scale (consistent range):
+    myGraph.set_scale_range(0, 100);  // Min=0, Max=100
+
+Clear Data:
+    myGraph.clear();
+
+Get Info:
+    float min = myGraph.get_min_value();
+    float max = myGraph.get_max_value();
+    int count = myGraph.get_data_count();
+
+================================================================================
+                          COMMON GRAPH SIZES
+================================================================================
+
+Full Screen:           Graph myGraph(10, 5, 108, 50);
+With Labels:           Graph myGraph(10, 10, 108, 44);
+Two Side-by-Side:      Graph left(5, 10, 55, 44);
+                       Graph right(65, 10, 55, 44);
+Three Stacked:         Graph top(10, 2, 108, 18);
+                       Graph mid(10, 23, 108, 18);
+                       Graph bot(10, 44, 108, 18);
+
+================================================================================
+                          EXAMPLE: POWER GRAPH
+================================================================================
+
+#include "graph.h"
+
+Graph powerGraph(10, 5, 108, 50);
+
+void setup() {
+    oled.setupOLED();
+    powerGraph.enable_auto_scale(true);
+}
+
+void loop() {
+    // Get your power value
+    float power = getBatteryPower();
+    
+    // Add to graph
+    powerGraph.push_value(power);
+    
+    // Display
+    oled.clearDisplay();
+    oled.send_to_oled_buffer(0, "Power: " + String(power, 1) + " kW");
+    oled.draw_graph(powerGraph);
+    oled.oled_update();
+    
+    delay(100);
+}
+
+================================================================================
+                         FILES YOU SHOULD KNOW
+================================================================================
+
+Start Here:
+  → CHECKLIST.md            - Step-by-step setup guide
+  → graph_test.ino          - Test to verify it works
+  → GRAPH_README.md         - Overview and quick reference
+
+Learn More:
+  → GRAPH_USAGE.md          - Complete API documentation
+  → graph_example.ino       - Basic examples
+  → INTEGRATION_EXAMPLE.ino - How to integrate
+  → CANserver_GRAPH_EXAMPLES.ino - CANserver-specific examples
+  → GRAPH_LAYOUT_GUIDE.ino  - Layout and coordinate help
+
+Core Files (already done):
+  → graph.h                 - Header file
+  → graph.cpp               - Implementation
+  → oled.h                  - Updated
+  → oled.cpp                - Updated
+
+================================================================================
+                          TROUBLESHOOTING
+================================================================================
+
+Graph not showing?
+  • Did you call oled.clearDisplay() before drawing?
+  • Did you call oled.oled_update() after drawing?
+  • Is the graph position within 0-127, 0-63?
+  • Have you pushed at least 2 data points?
+
+Graph looks weird?
+  • Check your x, y, width, height values
+  • Make sure data values are valid (not NaN)
+  • If using fixed scale, does it cover your data range?
+
+Won't compile?
+  • Is graph.h in the same folder as your .ino file?
+  • Did you include it: #include "graph.h"
+  • Are graph.h and graph.cpp both present?
+
+================================================================================
+                        WHAT TO GRAPH?
+================================================================================
+
+Great candidates from your CANserver:
+  • Battery Power (kW)
+  • Battery Temperature (°C)
+  • Vehicle Speed (mph/kph)
+  • State of Charge (%)
+  • Motor Power (Front/Rear)
+  • Coolant Temperature
+  • Efficiency (Wh/mi)
+  • Any numeric value you're tracking!
+
+================================================================================
+                          PERFORMANCE TIPS
+================================================================================
+
+1. Update Rate: 50-200ms is ideal (10-20 updates per second)
+2. Don't update faster than you can see changes
+3. Create graph objects globally, not in loop()
+4. Use auto-scale unless you need consistent comparison
+5. Each graph uses ~432 bytes of RAM
+
+================================================================================
+                            NEED HELP?
+================================================================================
+
+1. Start with CHECKLIST.md - step-by-step guide
+2. Test with graph_test.ino - verify it works
+3. Check GRAPH_USAGE.md - full documentation
+4. Look at examples - see working code
+5. Review troubleshooting section above
+
+================================================================================
+                          READY TO START?
+================================================================================
+
+Step 1: Upload graph_test.ino to verify everything works
+Step 2: Review CHECKLIST.md for detailed setup
+Step 3: Integrate into your project
+Step 4: Enjoy your new graphs!
+
+================================================================================
+
+Questions? See GRAPH_USAGE.md for comprehensive documentation.
+
+Happy Graphing!
+- Ross
+
+================================================================================
